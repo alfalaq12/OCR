@@ -1,16 +1,43 @@
 """
 Modul untuk proses OCR.
 Mendukung 2 engine: PaddleOCR (Docker) dan Tesseract (local).
+Sudah dioptimasi untuk performa lebih cepat.
 """
 
 import io
 import time
 import os
-from typing import Tuple
+from typing import Tuple, List
 from PIL import Image
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from app.config import settings
 
 # cek environment - kalo di docker pake paddleocr, kalo local pake tesseract
 USE_PADDLE = os.getenv("OCR_ENGINE", "auto").lower()
+
+
+def resize_gambar_kalau_perlu(gambar: Image.Image, max_dimension: int) -> Image.Image:
+    """
+    Resize gambar kalau terlalu gede.
+    Gambar gede bikin OCR lambat, resize ke max_dimension tetep akurat.
+    """
+    width, height = gambar.size
+    
+    if width <= max_dimension and height <= max_dimension:
+        return gambar
+    
+    # hitung ratio biar aspect ratio tetep sama
+    if width > height:
+        ratio = max_dimension / width
+    else:
+        ratio = max_dimension / height
+    
+    new_width = int(width * ratio)
+    new_height = int(height * ratio)
+    
+    # pake LANCZOS buat kualitas resize terbaik
+    return gambar.resize((new_width, new_height), Image.LANCZOS)
 
 
 class PaddleOCREngine:
@@ -19,22 +46,27 @@ class PaddleOCREngine:
     def __init__(self):
         from paddleocr import PaddleOCR
         # init sekali aja biar gak load model terus-terusan
+        # use_angle_cls diambil dari config - matiin kalo dokumen udah lurus
         self.ocr = PaddleOCR(
-            use_angle_cls=True,
+            use_angle_cls=settings.USE_ANGLE_CLS,
             lang='en',  # pake english model, works untuk indonesia juga
             show_log=False,
             use_gpu=False
         )
+        self._cls_enabled = settings.USE_ANGLE_CLS
     
     def baca_gambar(self, gambar: Image.Image) -> str:
         """Ekstrak teks dari gambar"""
         import numpy as np
         
+        # resize dulu kalau kegedean
+        gambar = resize_gambar_kalau_perlu(gambar, settings.MAX_IMAGE_DIMENSION)
+        
         # convert PIL ke numpy array
         img_array = np.array(gambar.convert("RGB"))
         
-        # jalanin OCR
-        hasil = self.ocr.ocr(img_array, cls=True)
+        # jalanin OCR - cls sesuai config
+        hasil = self.ocr.ocr(img_array, cls=self._cls_enabled)
         
         # ambil teks dari hasil
         texts = []
@@ -82,6 +114,9 @@ class TesseractEngine:
         import subprocess
         import tempfile
         
+        # resize dulu kalau kegedean
+        gambar = resize_gambar_kalau_perlu(gambar, settings.MAX_IMAGE_DIMENSION)
+        
         # simpen ke file temp
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             path_temp = tmp.name
@@ -113,6 +148,11 @@ class OCRService:
     Service utama OCR - otomatis pilih engine terbaik.
     Docker: pake PaddleOCR
     Local Windows: pake Tesseract
+    
+    Fitur performa:
+    - Image resize otomatis untuk gambar gede
+    - Parallel processing untuk PDF multi-halaman
+    - Configurable DPI untuk konversi PDF
     """
 
     def __init__(self):
@@ -155,10 +195,11 @@ class OCRService:
         return engine.baca_gambar(gambar)
 
     def _convert_pdf_ke_gambar(self, data_file: bytes) -> list:
-        """Convert PDF jadi list gambar"""
+        """Convert PDF jadi list gambar dengan DPI dari config"""
         try:
             from pdf2image import convert_from_bytes
-            return convert_from_bytes(data_file, dpi=200)
+            # DPI diambil dari config - 150 default (lebih cepet dari 200)
+            return convert_from_bytes(data_file, dpi=settings.PDF_DPI)
         except Exception as e:
             pesan = str(e).lower()
             if "poppler" in pesan or "pdftoppm" in pesan:
@@ -167,6 +208,12 @@ class OCRService:
                     "Download dari: https://github.com/osber/poppler-windows/releases"
                 )
             raise Exception(f"Gagal convert PDF: {str(e)}")
+
+    def _proses_satu_halaman(self, args: Tuple[int, Image.Image, str]) -> Tuple[int, str]:
+        """Helper buat parallel processing - proses satu halaman PDF"""
+        idx, gambar, bahasa = args
+        text = self.baca_gambar(gambar, bahasa)
+        return idx, text
 
     def proses_file(
         self,
@@ -177,6 +224,10 @@ class OCRService:
         """
         Proses file (gambar atau PDF).
         Return: (text, jumlah_halaman, waktu_ms)
+        
+        Optimasi:
+        - PDF: parallel processing kalo lebih dari 1 halaman
+        - Image: auto resize kalo kegedean
         """
         waktu_mulai = time.time()
 
@@ -184,15 +235,43 @@ class OCRService:
 
         if is_pdf:
             list_gambar = self._convert_pdf_ke_gambar(data_file)
-            semua_text = []
-
-            for idx, gambar in enumerate(list_gambar):
-                text_halaman = self.baca_gambar(gambar, bahasa)
-                if text_halaman:
-                    semua_text.append(f"--- Halaman {idx + 1} ---\n{text_halaman}")
-
-            text_hasil = "\n\n".join(semua_text)
             jumlah_halaman = len(list_gambar)
+            
+            # parallel processing kalo enabled dan ada lebih dari 1 halaman
+            if settings.PARALLEL_PDF_PROCESSING and jumlah_halaman > 1:
+                hasil_per_halaman = {}
+                
+                # batasi jumlah worker sesuai config
+                max_workers = min(settings.PDF_WORKERS, jumlah_halaman)
+                
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # submit semua halaman
+                    futures = {
+                        executor.submit(self._proses_satu_halaman, (idx, gambar, bahasa)): idx
+                        for idx, gambar in enumerate(list_gambar)
+                    }
+                    
+                    # ambil hasil sesuai urutan selesai
+                    for future in as_completed(futures):
+                        idx, text = future.result()
+                        hasil_per_halaman[idx] = text
+                
+                # susun ulang sesuai urutan halaman
+                semua_text = []
+                for idx in range(jumlah_halaman):
+                    text = hasil_per_halaman.get(idx, "")
+                    if text:
+                        semua_text.append(f"--- Halaman {idx + 1} ---\n{text}")
+                
+                text_hasil = "\n\n".join(semua_text)
+            else:
+                # sequential processing (1 halaman atau parallel disabled)
+                semua_text = []
+                for idx, gambar in enumerate(list_gambar):
+                    text_halaman = self.baca_gambar(gambar, bahasa)
+                    if text_halaman:
+                        semua_text.append(f"--- Halaman {idx + 1} ---\n{text_halaman}")
+                text_hasil = "\n\n".join(semua_text)
         else:
             gambar = Image.open(io.BytesIO(data_file))
             text_hasil = self.baca_gambar(gambar, bahasa)

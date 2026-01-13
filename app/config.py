@@ -19,6 +19,13 @@ class Settings:
     # setting OCR
     OCR_DEFAULT_LANGUAGE: str = os.getenv("OCR_DEFAULT_LANGUAGE", "mixed")
 
+    # Performance tuning - bisa di override via .env
+    PDF_DPI: int = int(os.getenv("PDF_DPI", "150"))  # 150 lebih cepat, 200 lebih akurat
+    USE_ANGLE_CLS: bool = os.getenv("USE_ANGLE_CLS", "false").lower() == "true"  # matiin kalo dokumen udah lurus
+    MAX_IMAGE_DIMENSION: int = int(os.getenv("MAX_IMAGE_DIMENSION", "2000"))  # resize gambar gede
+    PARALLEL_PDF_PROCESSING: bool = os.getenv("PARALLEL_PDF_PROCESSING", "true").lower() == "true"  # proses halaman paralel
+    PDF_WORKERS: int = int(os.getenv("PDF_WORKERS", "4"))  # jumlah worker untuk parallel processing
+
     # tipe file yang diperbolehkan
     ALLOWED_EXTENSIONS: set = {"png", "jpg", "jpeg", "gif", "bmp", "tiff", "pdf"}
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
