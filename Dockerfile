@@ -1,21 +1,30 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
-# Install dependencies sistem yang dibutuhkan
+# Install dependencies sistem yang dibutuhkan untuk PaddleOCR & pdf2image
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    # OpenCV dependencies
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
+    # PaddlePaddle dependencies
     libgomp1 \
+    # pdf2image dependencies (poppler)
     poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
+    # Tambahan untuk stability
+    libgthread-2.0-0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 WORKDIR /app
 
 # Copy requirements dulu biar cache-nya optimal
 COPY requirements.docker.txt .
-RUN pip install --no-cache-dir -r requirements.docker.txt
+
+# Upgrade pip dulu, lalu install requirements
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.docker.txt
 
 # Copy semua source code
 COPY . .
