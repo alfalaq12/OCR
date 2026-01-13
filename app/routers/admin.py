@@ -15,7 +15,7 @@ from typing import Optional
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 
-def cek_akses_admin(x_admin_key: Optional[str] = Header(None)):
+def cek_akses_admin(x_admin_key: Optional[str] = Header(None, description="Admin key untuk akses")):
     """
     Verifikasi akses admin.
     Bisa pake master key dari .env atau API key yang is_admin=true.
@@ -54,9 +54,24 @@ async def buat_api_key(
     admin_key: str = Depends(cek_akses_admin)
 ):
     """
-    Bikin API key baru.
+    🔑 **Generate API Key Baru**
     
-    PENTING: Key cuma ditampilin sekali, jadi langsung disimpen!
+    Buat API key baru untuk client. Key hanya ditampilkan **SEKALI**, 
+    pastikan langsung disimpan!
+    
+    **Parameter:**
+    - **name**: Nama/deskripsi key (misal: "Client Pak Faris")
+    - **is_admin**: Set `true` untuk buat admin key
+    
+    **Contoh Request:**
+    ```json
+    {
+      "name": "Client Pak Faris",
+      "is_admin": false
+    }
+    ```
+    
+    **⚠️ PENTING:** Simpan key yang dikembalikan, tidak bisa dilihat lagi!
     """
     hasil = db_service.bikin_api_key(
         nama=request.name,
@@ -69,8 +84,11 @@ async def buat_api_key(
 @router.get("/keys", response_model=APIKeyListResponse)
 async def list_api_keys(admin_key: str = Depends(cek_akses_admin)):
     """
-    Lihat semua API keys.
-    Key asli gak ditampilin, cuma prefix-nya aja.
+    📋 **Daftar Semua API Keys**
+    
+    Lihat semua API key yang terdaftar beserta statistik penggunaan.
+    
+    **Note:** Key asli tidak ditampilkan, hanya prefix-nya saja.
     """
     keys = db_service.list_api_keys()
     
@@ -99,8 +117,12 @@ async def cabut_api_key(
     admin_key: str = Depends(cek_akses_admin)
 ):
     """
-    Nonaktifkan API key.
-    Key yang dicabut gak bisa dipake lagi.
+    🚫 **Nonaktifkan API Key**
+    
+    Cabut/revoke API key sehingga tidak bisa digunakan lagi.
+    
+    **Parameter:**
+    - **key_id**: ID dari API key yang ingin dinonaktifkan
     """
     berhasil = db_service.cabut_api_key(key_id)
     
@@ -118,6 +140,16 @@ async def cabut_api_key(
 
 @router.get("/keys/stats", response_model=APIKeyStatsResponse)
 async def stats_api_key(admin_key: str = Depends(cek_akses_admin)):
-    """Lihat statistik penggunaan API keys."""
+    """
+    📈 **Statistik API Keys**
+    
+    Lihat ringkasan statistik semua API key.
+    
+    **Response:**
+    - Total keys
+    - Keys aktif
+    - Keys yang sudah di-revoke
+    - Total request dari semua key
+    """
     stats = db_service.stats_api_key()
     return APIKeyStatsResponse(**stats)

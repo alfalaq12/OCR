@@ -24,17 +24,35 @@ def cek_ekstensi_valid(nama_file: str) -> bool:
 
 @router.post("/extract", response_model=OCRResponse)
 async def extract_text(
-    file: UploadFile = File(...),
-    language: str = Form(default="mixed"),
+    file: UploadFile = File(..., description="File gambar atau PDF yang akan diproses"),
+    language: str = Form(default="mixed", description="Bahasa dokumen: id, en, atau mixed"),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Upload file buat di-OCR.
-    Support gambar (PNG, JPG, dll) dan PDF.
+    📄 **Upload & Ekstrak Teks**
     
-    Parameter:
-    - file: file yang mau diproses
-    - language: bahasa dokumen (id/en/mixed)
+    Upload file untuk diekstrak teksnya menggunakan OCR.
+    
+    **Format yang didukung:**
+    - Gambar: PNG, JPG, JPEG, GIF, BMP, TIFF
+    - Dokumen: PDF (multi-halaman)
+    
+    **Parameter:**
+    - **file**: File yang akan diproses (maks. 50MB)
+    - **language**: Bahasa dokumen
+        - `id` = Bahasa Indonesia
+        - `en` = English
+        - `mixed` = Campuran (default)
+    
+    **Contoh Response:**
+    ```json
+    {
+      "success": true,
+      "text": "Hasil ekstraksi...",
+      "pages": 1,
+      "processing_time_ms": 1234
+    }
+    ```
     """
     # validasi ekstensi
     if not cek_ekstensi_valid(file.filename):
@@ -177,8 +195,23 @@ async def extract_from_minio(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    OCR file yang ada di MinIO storage.
-    Tinggal kasih nama bucket dan path file-nya.
+    📦 **OCR dari MinIO Storage**
+    
+    Ekstrak teks dari file yang tersimpan di MinIO object storage.
+    
+    **Parameter:**
+    - **bucket**: Nama bucket di MinIO
+    - **object_key**: Path file di dalam bucket
+    - **language**: Bahasa dokumen (id/en/mixed)
+    
+    **Contoh Request:**
+    ```json
+    {
+      "bucket": "documents",
+      "object_key": "scans/invoice.pdf",
+      "language": "mixed"
+    }
+    ```
     """
     path_lengkap = f"{request.bucket}/{request.object_key}"
     
@@ -293,11 +326,19 @@ async def extract_from_minio(
 
 @router.get("/history", response_model=OCRHistoryResponse)
 async def get_history(
-    limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100, description="Jumlah data per halaman"),
+    offset: int = Query(default=0, ge=0, description="Data mulai dari index ke-"),
     api_key: str = Depends(verify_api_key)
 ):
-    """Ambil history request OCR dengan pagination."""
+    """
+    📜 **Lihat History Request**
+    
+    Ambil daftar request OCR yang pernah dilakukan dengan pagination.
+    
+    **Parameter:**
+    - **limit**: Jumlah data per halaman (1-100, default: 50)
+    - **offset**: Skip data sejumlah ini (default: 0)
+    """
     items = db_service.ambil_history(limit=limit, offset=offset)
     total = db_service.hitung_total()
     
@@ -322,5 +363,15 @@ async def get_history(
 
 @router.get("/stats")
 async def get_stats(api_key: str = Depends(verify_api_key)):
-    """Ambil statistik penggunaan OCR."""
+    """
+    📊 **Statistik Penggunaan**
+    
+    Lihat ringkasan statistik penggunaan OCR API.
+    
+    **Response:**
+    - Total request
+    - Request berhasil/gagal
+    - Rata-rata waktu proses
+    - Total halaman diproses
+    """
     return db_service.ambil_stats()
