@@ -1,6 +1,5 @@
-"""
-Router untuk endpoint OCR.
-Handle upload file, proses OCR, dan ambil history.
+"""Router untuk endpoint OCR.
+Menangani upload file, proses ekstraksi teks, dan riwayat penggunaan.
 """
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query
@@ -29,30 +28,15 @@ async def extract_text(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    📄 **Upload & Ekstrak Teks**
+    Ekstrak teks dari file dokumen yang diupload.
     
-    Upload file untuk diekstrak teksnya menggunakan OCR.
+    Mendukung format gambar (PNG, JPG, JPEG, GIF, BMP, TIFF) dan PDF multi-halaman.
+    Maksimal ukuran file 50MB.
     
-    **Format yang didukung:**
-    - Gambar: PNG, JPG, JPEG, GIF, BMP, TIFF
-    - Dokumen: PDF (multi-halaman)
-    
-    **Parameter:**
-    - **file**: File yang akan diproses (maks. 50MB)
-    - **language**: Bahasa dokumen
-        - `id` = Bahasa Indonesia
-        - `en` = English
-        - `mixed` = Campuran (default)
-    
-    **Contoh Response:**
-    ```json
-    {
-      "success": true,
-      "text": "Hasil ekstraksi...",
-      "pages": 1,
-      "processing_time_ms": 1234
-    }
-    ```
+    Parameter language:
+    - id: Bahasa Indonesia
+    - en: English  
+    - mixed: Deteksi otomatis (default)
     """
     # validasi ekstensi
     if not cek_ekstensi_valid(file.filename):
@@ -195,23 +179,10 @@ async def extract_from_minio(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    📦 **OCR dari MinIO Storage**
-    
     Ekstrak teks dari file yang tersimpan di MinIO object storage.
     
-    **Parameter:**
-    - **bucket**: Nama bucket di MinIO
-    - **object_key**: Path file di dalam bucket
-    - **language**: Bahasa dokumen (id/en/mixed)
-    
-    **Contoh Request:**
-    ```json
-    {
-      "bucket": "documents",
-      "object_key": "scans/invoice.pdf",
-      "language": "mixed"
-    }
-    ```
+    Gunakan endpoint ini untuk memproses file yang sudah ada di storage
+    tanpa perlu upload ulang.
     """
     path_lengkap = f"{request.bucket}/{request.object_key}"
     
@@ -331,13 +302,9 @@ async def get_history(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    📜 **Lihat History Request**
+    Mengambil riwayat request OCR dengan pagination.
     
-    Ambil daftar request OCR yang pernah dilakukan dengan pagination.
-    
-    **Parameter:**
-    - **limit**: Jumlah data per halaman (1-100, default: 50)
-    - **offset**: Skip data sejumlah ini (default: 0)
+    Gunakan parameter limit dan offset untuk navigasi data.
     """
     items = db_service.ambil_history(limit=limit, offset=offset)
     total = db_service.hitung_total()
@@ -364,14 +331,8 @@ async def get_history(
 @router.get("/stats")
 async def get_stats(api_key: str = Depends(verify_api_key)):
     """
-    📊 **Statistik Penggunaan**
+    Mengambil ringkasan statistik penggunaan API.
     
-    Lihat ringkasan statistik penggunaan OCR API.
-    
-    **Response:**
-    - Total request
-    - Request berhasil/gagal
-    - Rata-rata waktu proses
-    - Total halaman diproses
+    Menampilkan total request, success rate, dan rata-rata waktu proses.
     """
     return db_service.ambil_stats()

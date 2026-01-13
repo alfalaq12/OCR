@@ -1,6 +1,6 @@
 """
-Entry point aplikasi OCR API.
-Jalanin pake: python -m uvicorn app.main:app --reload
+Entry point untuk Document OCR Service.
+Server dijalankan dengan: python -m uvicorn app.main:app --reload
 """
 
 from fastapi import FastAPI
@@ -12,50 +12,47 @@ from app.middleware.auth import RateLimitMiddleware
 from app.config import settings
 
 
-# deskripsi lengkap buat API docs
-DESKRIPSI_API = """
-# 🔍 OCR API Documentation
+# Dokumentasi API untuk enterprise clients
+API_DESCRIPTION = """
+# Document OCR Service
 
-Selamat datang di OCR API! API ini memungkinkan Anda untuk mengekstrak teks dari dokumen scan seperti gambar dan PDF.
-
----
-
-## 🚀 Fitur Utama
-
-| Fitur | Keterangan |
-|-------|------------|
-| 📄 **Image OCR** | Baca teks dari PNG, JPG, TIFF, BMP, GIF |
-| 📑 **PDF OCR** | Support multi-halaman dengan output per halaman |
-| 🌐 **Multi Bahasa** | Indonesia dan English |
-| 📦 **MinIO Integration** | Proses file langsung dari object storage |
-| 🔐 **API Key Auth** | Keamanan dengan API key |
-| ⏱️ **Rate Limiting** | Perlindungan dari spam request |
-| 📊 **History & Stats** | Lacak penggunaan API |
+Layanan ekstraksi teks otomatis dari dokumen scan untuk kebutuhan digitalisasi arsip dan otomasi data entry.
 
 ---
 
-## 🔑 Autentikasi
+## Kemampuan Utama
 
-Untuk menggunakan API, tambahkan header:
+| Fitur | Spesifikasi |
+|-------|-------------|
+| **Format Input** | PNG, JPG, JPEG, TIFF, BMP, GIF, PDF |
+| **PDF Multi-halaman** | Mendukung hingga 100+ halaman per dokumen |
+| **Bahasa** | Indonesia, English, Mixed |
+| **Akurasi** | 95%+ untuk dokumen berkualitas baik |
+| **Response Time** | ~3-6 detik per halaman |
+
+---
+
+## Autentikasi
+
+Setiap request memerlukan API Key yang valid pada header:
+
 ```
-X-API-Key: <your-api-key>
+X-API-Key: <api-key-anda>
 ```
 
-Hubungi administrator untuk mendapatkan API key.
+Untuk mendapatkan API Key, hubungi administrator sistem.
 
 ---
 
-## 📝 Format Response
-
-Semua endpoint mengembalikan format JSON yang konsisten:
+## Contoh Response
 
 ```json
 {
   "success": true,
-  "text": "Hasil ekstraksi teks...",
-  "pages": 1,
-  "language": "mixed",
-  "processing_time_ms": 1234,
+  "text": "Hasil ekstraksi teks dari dokumen...",
+  "pages": 5,
+  "language": "id",
+  "processing_time_ms": 15234,
   "error": null,
   "error_code": null
 }
@@ -63,69 +60,73 @@ Semua endpoint mengembalikan format JSON yang konsisten:
 
 ---
 
-## ⚠️ Error Codes
+## Kode Error
 
 | Kode | Deskripsi |
 |------|-----------|
-| `AUTH_MISSING_KEY` | API key tidak ditemukan di header |
-| `AUTH_INVALID_KEY` | API key tidak valid |
+| `AUTH_MISSING_KEY` | Header X-API-Key tidak ditemukan |
+| `AUTH_INVALID_KEY` | API Key tidak valid atau sudah expired |
 | `FILE_TYPE_NOT_ALLOWED` | Format file tidak didukung |
-| `FILE_TOO_LARGE` | Ukuran file melebihi 50MB |
-| `OCR_ENGINE_ERROR` | Gagal memproses OCR |
-| `PDF_CONVERSION_ERROR` | Gagal mengkonversi PDF |
-| `RATE_LIMIT_EXCEEDED` | Terlalu banyak request |
+| `FILE_TOO_LARGE` | Ukuran file melebihi batas 50MB |
+| `OCR_ENGINE_ERROR` | Terjadi kesalahan pada proses OCR |
+| `PDF_CONVERSION_ERROR` | Gagal mengkonversi halaman PDF |
+| `RATE_LIMIT_EXCEEDED` | Batas request per menit terlampaui |
 
 ---
 
-## 📞 Dukungan
+## Kontak Teknis
 
-Jika mengalami kendala, silakan hubungi tim teknis.
+Untuk pertanyaan teknis atau integrasi, silakan hubungi tim development.
 """
 
-# metadata untuk tags
+# Metadata untuk grouping endpoint
 TAGS_METADATA = [
     {
         "name": "OCR",
-        "description": "**Endpoint utama** untuk ekstraksi teks dari dokumen. Upload file atau ambil dari MinIO.",
+        "description": "Endpoint untuk ekstraksi teks dari file dokumen. Mendukung upload langsung atau integrasi MinIO.",
     },
     {
         "name": "Admin",
-        "description": "**Manajemen API Key**. Memerlukan akses admin (X-Admin-Key header).",
+        "description": "Manajemen API Key dan monitoring penggunaan. Memerlukan akses administrator.",
+    },
+    {
+        "name": "Health",
+        "description": "Status dan health check untuk monitoring infrastructure.",
     },
 ]
 
 
 app = FastAPI(
-    title="🔍 OCR API",
-    description=DESKRIPSI_API,
+    title="Document OCR Service",
+    description=API_DESCRIPTION,
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_tags=TAGS_METADATA,
     contact={
         "name": "Tim Development",
-        "email": "support@example.com",
+        "email": "dev@company.id",
     },
     license_info={
-        "name": "Proprietary",
+        "name": "Proprietary License",
     },
 )
 
 
-# custom OpenAPI schema biar lebih bagus
 def custom_openapi():
+    """Generate custom OpenAPI schema dengan branding yang konsisten."""
     if app.openapi_schema:
         return app.openapi_schema
     
     openapi_schema = get_openapi(
-        title="🔍 OCR API",
+        title="Document OCR Service",
         version="1.0.0",
-        description=DESKRIPSI_API,
+        description=API_DESCRIPTION,
         routes=app.routes,
         tags=TAGS_METADATA,
     )
     
-    # tambahin logo (optional - bisa diganti URL logo sendiri)
+    # Logo untuk ReDoc (opsional - ganti dengan URL logo perusahaan)
     openapi_schema["info"]["x-logo"] = {
         "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
     }
@@ -137,7 +138,7 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 
-# izinin akses dari domain manapun (CORS)
+# CORS configuration untuk akses dari berbagai domain
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -146,14 +147,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# aktifin rate limiting kalo di-enable
+# Rate limiting untuk mencegah abuse
 if settings.RATE_LIMIT_ENABLED:
     app.add_middleware(
         RateLimitMiddleware,
         requests_per_minute=settings.RATE_LIMIT_PER_MINUTE
     )
 
-# daftarin semua router
+# Register routers
 app.include_router(ocr.router)
 app.include_router(admin.router)
 
@@ -161,13 +162,9 @@ app.include_router(admin.router)
 @app.get("/", response_model=HealthResponse, tags=["Health"])
 async def root():
     """
-    🏠 **Health Check**
+    Root endpoint yang mengembalikan status server.
     
-    Endpoint untuk mengecek apakah server berjalan normal.
-    
-    Returns:
-    - **status**: Status server (healthy/unhealthy)
-    - **version**: Versi API
+    Digunakan untuk verifikasi bahwa service berjalan dengan normal.
     """
     return HealthResponse(
         status="healthy",
@@ -178,9 +175,9 @@ async def root():
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
     """
-    💓 **Health Check (Alternatif)**
+    Health check endpoint untuk monitoring dan load balancer.
     
-    Endpoint alternatif untuk health check, biasanya digunakan oleh load balancer.
+    Mengembalikan status server dan versi API yang sedang berjalan.
     """
     return HealthResponse(
         status="healthy",

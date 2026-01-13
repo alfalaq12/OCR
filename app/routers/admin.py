@@ -1,6 +1,5 @@
-"""
-Router untuk admin - manage API keys.
-Butuh X-Admin-Key header buat akses.
+"""Router untuk manajemen API Key.
+Memerlukan X-Admin-Key header untuk akses semua endpoint.
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Header
@@ -17,8 +16,7 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 def cek_akses_admin(x_admin_key: Optional[str] = Header(None, description="Admin key untuk akses")):
     """
-    Verifikasi akses admin.
-    Bisa pake master key dari .env atau API key yang is_admin=true.
+    Verifikasi akses admin menggunakan master key atau API key dengan flag is_admin.
     """
     if not x_admin_key:
         raise HTTPException(
@@ -26,15 +24,15 @@ def cek_akses_admin(x_admin_key: Optional[str] = Header(None, description="Admin
             detail={
                 "error": "Admin key diperlukan",
                 "error_code": "ADMIN_KEY_REQUIRED",
-                "details": "Tambahin header X-Admin-Key"
+                "details": "Tambahkan header X-Admin-Key"
             }
         )
     
-    # cek master key dari env
+    # Cek master key dari environment
     if settings.ADMIN_MASTER_KEY and x_admin_key == settings.ADMIN_MASTER_KEY:
         return "master"
     
-    # cek apakah admin API key dari database
+    # Cek admin API key dari database
     if db_service.cek_admin_key(x_admin_key):
         return x_admin_key
     
@@ -43,7 +41,7 @@ def cek_akses_admin(x_admin_key: Optional[str] = Header(None, description="Admin
         detail={
             "error": "Admin key tidak valid",
             "error_code": "ADMIN_KEY_INVALID",
-            "details": "Key yang dikasih salah atau bukan admin"
+            "details": "Key yang diberikan tidak valid atau bukan admin"
         }
     )
 
@@ -54,24 +52,10 @@ async def buat_api_key(
     admin_key: str = Depends(cek_akses_admin)
 ):
     """
-    🔑 **Generate API Key Baru**
+    Membuat API Key baru untuk client.
     
-    Buat API key baru untuk client. Key hanya ditampilkan **SEKALI**, 
-    pastikan langsung disimpan!
-    
-    **Parameter:**
-    - **name**: Nama/deskripsi key (misal: "Client Pak Faris")
-    - **is_admin**: Set `true` untuk buat admin key
-    
-    **Contoh Request:**
-    ```json
-    {
-      "name": "Client Pak Faris",
-      "is_admin": false
-    }
-    ```
-    
-    **⚠️ PENTING:** Simpan key yang dikembalikan, tidak bisa dilihat lagi!
+    Key hanya ditampilkan sekali saat pembuatan, pastikan langsung disimpan
+    karena tidak dapat dilihat kembali.
     """
     hasil = db_service.bikin_api_key(
         nama=request.name,
@@ -84,11 +68,9 @@ async def buat_api_key(
 @router.get("/keys", response_model=APIKeyListResponse)
 async def list_api_keys(admin_key: str = Depends(cek_akses_admin)):
     """
-    📋 **Daftar Semua API Keys**
+    Mengambil daftar semua API Key yang terdaftar.
     
-    Lihat semua API key yang terdaftar beserta statistik penggunaan.
-    
-    **Note:** Key asli tidak ditampilkan, hanya prefix-nya saja.
+    Key asli tidak ditampilkan untuk keamanan, hanya prefix-nya saja.
     """
     keys = db_service.list_api_keys()
     
@@ -117,12 +99,9 @@ async def cabut_api_key(
     admin_key: str = Depends(cek_akses_admin)
 ):
     """
-    🚫 **Nonaktifkan API Key**
+    Menonaktifkan API Key sehingga tidak dapat digunakan lagi.
     
-    Cabut/revoke API key sehingga tidak bisa digunakan lagi.
-    
-    **Parameter:**
-    - **key_id**: ID dari API key yang ingin dinonaktifkan
+    Operasi ini bersifat permanen dan tidak dapat dibatalkan.
     """
     berhasil = db_service.cabut_api_key(key_id)
     
@@ -141,15 +120,9 @@ async def cabut_api_key(
 @router.get("/keys/stats", response_model=APIKeyStatsResponse)
 async def stats_api_key(admin_key: str = Depends(cek_akses_admin)):
     """
-    📈 **Statistik API Keys**
+    Mengambil ringkasan statistik penggunaan API Key.
     
-    Lihat ringkasan statistik semua API key.
-    
-    **Response:**
-    - Total keys
-    - Keys aktif
-    - Keys yang sudah di-revoke
-    - Total request dari semua key
+    Menampilkan total keys, keys aktif, keys revoked, dan total request.
     """
     stats = db_service.stats_api_key()
     return APIKeyStatsResponse(**stats)
