@@ -1,27 +1,28 @@
-FROM python:3.11-slim
+FROM almalinux:9-minimal
 
-# Install system dependencies for pdf2image and PaddleOCR
-RUN apt-get update && apt-get install -y \
+# Install Python 3.11 dan dependencies sistem
+RUN microdnf install -y \
+    python3.11 \
+    python3.11-pip \
     poppler-utils \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
+    mesa-libGL \
+    libgomp \
+    && microdnf clean all
+
+# Set Python 3.11 sebagai default
+RUN alternatives --set python3 /usr/bin/python3.11
 
 WORKDIR /app
 
-# Copy requirements first for caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements dulu biar cache-nya optimal
+COPY requirements.docker.txt .
+RUN pip3.11 install --no-cache-dir -r requirements.docker.txt
 
-# Copy application code
+# Copy semua source code
 COPY . .
 
 # Expose port
 EXPOSE 8000
 
-# Run with uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Jalanin server
+CMD ["python3.11", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
