@@ -1,3 +1,8 @@
+"""
+Database service pake SQLite.
+Nyimpen history OCR dan manage API keys.
+"""
+
 import sqlite3
 from datetime import datetime
 from typing import Optional, List
@@ -7,16 +12,16 @@ import hashlib
 
 
 class DatabaseService:
-    """Service for SQLite database operations - OCR history and API key management"""
+    """Handle semua operasi database - history OCR dan API keys"""
 
     def __init__(self, db_path: str = "ocr_history.db"):
         self.db_path = db_path
-        self._init_db()
+        self._setup_tabel()
 
-    def _init_db(self):
-        """Initialize database and create tables"""
-        with self._get_connection() as conn:
-            # OCR History table
+    def _setup_tabel(self):
+        """Bikin tabel kalo belum ada"""
+        with self._konek() as conn:
+            # tabel buat nyimpen history request OCR
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS ocr_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +39,7 @@ class DatabaseService:
                 )
             """)
             
-            # API Keys table
+            # tabel buat manage API keys
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS api_keys (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,8 +57,8 @@ class DatabaseService:
             conn.commit()
 
     @contextmanager
-    def _get_connection(self):
-        """Get database connection"""
+    def _konek(self):
+        """Buka koneksi database"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         try:
@@ -62,40 +67,40 @@ class DatabaseService:
             conn.close()
 
     def _hash_key(self, key: str) -> str:
-        """Hash API key for secure storage"""
+        """Hash API key biar aman disimpen"""
         return hashlib.sha256(key.encode()).hexdigest()
 
     # ==================== API Key Management ====================
 
-    def generate_api_key(self, name: str, is_admin: bool = False) -> dict:
-        """Generate a new API key"""
-        # Generate random key: sk-ocr-{32 random chars}
+    def bikin_api_key(self, nama: str, is_admin: bool = False) -> dict:
+        """Generate API key baru"""
+        # format: sk-ocr-{random 32 karakter}
         random_part = secrets.token_hex(16)
         full_key = f"sk-ocr-{random_part}"
         key_prefix = f"sk-ocr-{random_part[:8]}..."
         key_hash = self._hash_key(full_key)
 
-        with self._get_connection() as conn:
+        with self._konek() as conn:
             cursor = conn.execute("""
                 INSERT INTO api_keys (key_hash, key_prefix, name, is_admin)
                 VALUES (?, ?, ?, ?)
-            """, (key_hash, key_prefix, name, 1 if is_admin else 0))
+            """, (key_hash, key_prefix, nama, 1 if is_admin else 0))
             conn.commit()
 
             return {
                 "id": cursor.lastrowid,
-                "key": full_key,  # Only returned once!
+                "key": full_key,  # cuma dikasih sekali ini!
                 "key_prefix": key_prefix,
-                "name": name,
+                "name": nama,
                 "is_admin": is_admin,
-                "message": "Save this key securely! It won't be shown again."
+                "message": "Simpen key ini baik-baik, gak akan ditampilin lagi!"
             }
 
-    def validate_api_key(self, key: str) -> Optional[dict]:
-        """Validate API key and return key info if valid"""
+    def validasi_api_key(self, key: str) -> Optional[dict]:
+        """Cek apakah API key valid"""
         key_hash = self._hash_key(key)
 
-        with self._get_connection() as conn:
+        with self._konek() as conn:
             cursor = conn.execute("""
                 SELECT id, key_prefix, name, is_admin, is_active
                 FROM api_keys
@@ -104,7 +109,7 @@ class DatabaseService:
             row = cursor.fetchone()
 
             if row:
-                # Update usage stats
+                # update statistik pemakaian
                 conn.execute("""
                     UPDATE api_keys 
                     SET requests_count = requests_count + 1, last_used_at = ?
@@ -121,14 +126,14 @@ class DatabaseService:
                 }
         return None
 
-    def is_admin_key(self, key: str) -> bool:
-        """Check if key is an admin key"""
-        key_info = self.validate_api_key(key)
-        return key_info is not None and key_info.get("is_admin", False)
+    def cek_admin_key(self, key: str) -> bool:
+        """Cek apakah key ini punya akses admin"""
+        info = self.validasi_api_key(key)
+        return info is not None and info.get("is_admin", False)
 
     def list_api_keys(self) -> List[dict]:
-        """List all API keys (without the actual key)"""
-        with self._get_connection() as conn:
+        """Ambil semua API keys (tanpa key aslinya)"""
+        with self._konek() as conn:
             cursor = conn.execute("""
                 SELECT id, key_prefix, name, is_admin, is_active, 
                        requests_count, last_used_at, created_at, revoked_at
@@ -137,9 +142,9 @@ class DatabaseService:
             """)
             return [dict(row) for row in cursor.fetchall()]
 
-    def revoke_api_key(self, key_id: int) -> bool:
-        """Revoke an API key"""
-        with self._get_connection() as conn:
+    def cabut_api_key(self, key_id: int) -> bool:
+        """Nonaktifkan API key"""
+        with self._konek() as conn:
             cursor = conn.execute("""
                 UPDATE api_keys 
                 SET is_active = 0, revoked_at = ?
@@ -148,9 +153,9 @@ class DatabaseService:
             conn.commit()
             return cursor.rowcount > 0
 
-    def get_api_key_stats(self) -> dict:
-        """Get API key statistics"""
-        with self._get_connection() as conn:
+    def stats_api_key(self) -> dict:
+        """Ambil statistik API keys"""
+        with self._konek() as conn:
             cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total_keys,
@@ -167,9 +172,9 @@ class DatabaseService:
                 "total_requests": row[3] or 0
             }
 
-    # ==================== OCR History ====================
+    # ==================== History OCR ====================
 
-    def log_request(
+    def catat_request(
         self,
         filename: str,
         file_size: int,
@@ -182,8 +187,8 @@ class DatabaseService:
         text_preview: Optional[str] = None,
         api_key: Optional[str] = None
     ) -> int:
-        """Log OCR request to database"""
-        with self._get_connection() as conn:
+        """Catat request OCR ke database"""
+        with self._konek() as conn:
             cursor = conn.execute("""
                 INSERT INTO ocr_history 
                 (filename, file_size, pages, language, processing_time_ms, 
@@ -198,9 +203,9 @@ class DatabaseService:
             conn.commit()
             return cursor.lastrowid
 
-    def get_history(self, limit: int = 50, offset: int = 0) -> List[dict]:
-        """Get OCR history with pagination"""
-        with self._get_connection() as conn:
+    def ambil_history(self, limit: int = 50, offset: int = 0) -> List[dict]:
+        """Ambil history dengan pagination"""
+        with self._konek() as conn:
             cursor = conn.execute("""
                 SELECT id, filename, file_size, pages, language, 
                        processing_time_ms, success, error_message, created_at
@@ -210,15 +215,15 @@ class DatabaseService:
             """, (limit, offset))
             return [dict(row) for row in cursor.fetchall()]
 
-    def get_total_count(self) -> int:
-        """Get total count of history records"""
-        with self._get_connection() as conn:
+    def hitung_total(self) -> int:
+        """Hitung total record history"""
+        with self._konek() as conn:
             cursor = conn.execute("SELECT COUNT(*) FROM ocr_history")
             return cursor.fetchone()[0]
 
-    def get_stats(self) -> dict:
-        """Get OCR statistics"""
-        with self._get_connection() as conn:
+    def ambil_stats(self) -> dict:
+        """Ambil statistik OCR"""
+        with self._konek() as conn:
             cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total_requests,
@@ -237,6 +242,34 @@ class DatabaseService:
                 "total_pages_processed": row[4] or 0
             }
 
+    # alias buat backward compatibility
+    def generate_api_key(self, name, is_admin=False):
+        return self.bikin_api_key(name, is_admin)
+    
+    def validate_api_key(self, key):
+        return self.validasi_api_key(key)
+    
+    def is_admin_key(self, key):
+        return self.cek_admin_key(key)
+    
+    def revoke_api_key(self, key_id):
+        return self.cabut_api_key(key_id)
+    
+    def get_api_key_stats(self):
+        return self.stats_api_key()
+    
+    def log_request(self, **kwargs):
+        return self.catat_request(**kwargs)
+    
+    def get_history(self, limit=50, offset=0):
+        return self.ambil_history(limit, offset)
+    
+    def get_total_count(self):
+        return self.hitung_total()
+    
+    def get_stats(self):
+        return self.ambil_stats()
 
-# Singleton instance
+
+# singleton
 db_service = DatabaseService()

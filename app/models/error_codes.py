@@ -1,39 +1,40 @@
 """
-OCR Error Codes for debugging
+Daftar kode error buat debugging.
+Setiap error ada kode unik biar gampang nyari masalahnya.
 """
 
 
 class OCRErrorCode:
-    # Authentication errors (AUTH_xxx)
-    AUTH_MISSING_KEY = "AUTH_MISSING_KEY"
-    AUTH_INVALID_KEY = "AUTH_INVALID_KEY"
+    # error autentikasi
+    AUTH_MISSING_KEY = "AUTH_MISSING_KEY"       # gak ada API key
+    AUTH_INVALID_KEY = "AUTH_INVALID_KEY"       # API key salah
     
-    # Rate limiting (RATE_xxx)
-    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    # error rate limit
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED" # kebanyakan request
     
-    # File errors (FILE_xxx)
-    FILE_TYPE_NOT_ALLOWED = "FILE_TYPE_NOT_ALLOWED"
-    FILE_TOO_LARGE = "FILE_TOO_LARGE"
-    FILE_EMPTY = "FILE_EMPTY"
-    FILE_CORRUPTED = "FILE_CORRUPTED"
-    FILE_NOT_FOUND = "FILE_NOT_FOUND"
+    # error file
+    FILE_TYPE_NOT_ALLOWED = "FILE_TYPE_NOT_ALLOWED"   # format gak didukung
+    FILE_TOO_LARGE = "FILE_TOO_LARGE"                 # file kegedean
+    FILE_EMPTY = "FILE_EMPTY"                         # file kosong
+    FILE_CORRUPTED = "FILE_CORRUPTED"                 # file rusak
+    FILE_NOT_FOUND = "FILE_NOT_FOUND"                 # file gak ketemu
     
-    # OCR processing errors (OCR_xxx)
-    OCR_ENGINE_ERROR = "OCR_ENGINE_ERROR"
-    OCR_NO_TEXT_FOUND = "OCR_NO_TEXT_FOUND"
-    OCR_LANGUAGE_NOT_SUPPORTED = "OCR_LANGUAGE_NOT_SUPPORTED"
-    OCR_TIMEOUT = "OCR_TIMEOUT"
+    # error proses OCR
+    OCR_ENGINE_ERROR = "OCR_ENGINE_ERROR"             # tesseract error
+    OCR_NO_TEXT_FOUND = "OCR_NO_TEXT_FOUND"           # gak ada text
+    OCR_LANGUAGE_NOT_SUPPORTED = "OCR_LANGUAGE_NOT_SUPPORTED"  # bahasa gak ada
+    OCR_TIMEOUT = "OCR_TIMEOUT"                       # kelamaan
     
-    # PDF errors (PDF_xxx)
-    PDF_CONVERSION_ERROR = "PDF_CONVERSION_ERROR"
-    PDF_PASSWORD_PROTECTED = "PDF_PASSWORD_PROTECTED"
-    PDF_TOO_MANY_PAGES = "PDF_TOO_MANY_PAGES"
+    # error PDF
+    PDF_CONVERSION_ERROR = "PDF_CONVERSION_ERROR"     # gagal convert PDF
+    PDF_PASSWORD_PROTECTED = "PDF_PASSWORD_PROTECTED" # PDF dikunci
+    PDF_TOO_MANY_PAGES = "PDF_TOO_MANY_PAGES"        # halaman kebanyakan
     
-    # MinIO errors (MINIO_xxx)
-    MINIO_CONNECTION_ERROR = "MINIO_CONNECTION_ERROR"
-    MINIO_OBJECT_NOT_FOUND = "MINIO_OBJECT_NOT_FOUND"
-    MINIO_BUCKET_NOT_FOUND = "MINIO_BUCKET_NOT_FOUND"
+    # error MinIO
+    MINIO_CONNECTION_ERROR = "MINIO_CONNECTION_ERROR" # gak bisa konek
+    MINIO_OBJECT_NOT_FOUND = "MINIO_OBJECT_NOT_FOUND" # file gak ada
+    MINIO_BUCKET_NOT_FOUND = "MINIO_BUCKET_NOT_FOUND" # bucket gak ada
     
-    # General errors
-    INTERNAL_ERROR = "INTERNAL_ERROR"
-    UNKNOWN_ERROR = "UNKNOWN_ERROR"
+    # error umum
+    INTERNAL_ERROR = "INTERNAL_ERROR"                 # error server
+    UNKNOWN_ERROR = "UNKNOWN_ERROR"                   # error gak diketahui

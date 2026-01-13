@@ -1,3 +1,8 @@
+"""
+Router untuk admin - manage API keys.
+Butuh X-Admin-Key header buat akses.
+"""
+
 from fastapi import APIRouter, HTTPException, Depends, Header
 from app.models.schemas import (
     APIKeyCreateRequest, APIKeyResponse, APIKeyInfo, 
@@ -7,74 +12,65 @@ from app.services.db_service import db_service
 from app.config import settings
 from typing import Optional
 
-router = APIRouter(prefix="/api/admin", tags=["Admin - API Key Management"])
+router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 
-def verify_admin_access(x_admin_key: Optional[str] = Header(None)):
+def cek_akses_admin(x_admin_key: Optional[str] = Header(None)):
     """
-    Verify admin access via:
-    1. Admin API key from database
-    2. Master admin key from .env (ADMIN_MASTER_KEY)
+    Verifikasi akses admin.
+    Bisa pake master key dari .env atau API key yang is_admin=true.
     """
     if not x_admin_key:
         raise HTTPException(
             status_code=401,
             detail={
-                "error": "Admin key required",
+                "error": "Admin key diperlukan",
                 "error_code": "ADMIN_KEY_REQUIRED",
-                "details": "Provide X-Admin-Key header"
+                "details": "Tambahin header X-Admin-Key"
             }
         )
     
-    # Check master admin key from env
+    # cek master key dari env
     if settings.ADMIN_MASTER_KEY and x_admin_key == settings.ADMIN_MASTER_KEY:
         return "master"
     
-    # Check if it's an admin API key from database
-    if db_service.is_admin_key(x_admin_key):
+    # cek apakah admin API key dari database
+    if db_service.cek_admin_key(x_admin_key):
         return x_admin_key
     
     raise HTTPException(
         status_code=403,
         detail={
-            "error": "Invalid admin key",
+            "error": "Admin key tidak valid",
             "error_code": "ADMIN_KEY_INVALID",
-            "details": "The provided admin key is not valid"
+            "details": "Key yang dikasih salah atau bukan admin"
         }
     )
 
 
 @router.post("/keys", response_model=APIKeyResponse)
-async def create_api_key(
+async def buat_api_key(
     request: APIKeyCreateRequest,
-    admin_key: str = Depends(verify_admin_access)
+    admin_key: str = Depends(cek_akses_admin)
 ):
     """
-    Generate a new API key.
+    Bikin API key baru.
     
-    **Requires Admin Access** (X-Admin-Key header)
-    
-    - **name**: Descriptive name for the key (e.g., "Client Pak Faris")
-    - **is_admin**: Set to true to create an admin key
-    
-    ⚠️ The full API key is only returned ONCE. Save it securely!
+    PENTING: Key cuma ditampilin sekali, jadi langsung disimpen!
     """
-    result = db_service.generate_api_key(
-        name=request.name,
+    hasil = db_service.bikin_api_key(
+        nama=request.name,
         is_admin=request.is_admin
     )
     
-    return APIKeyResponse(**result)
+    return APIKeyResponse(**hasil)
 
 
 @router.get("/keys", response_model=APIKeyListResponse)
-async def list_api_keys(admin_key: str = Depends(verify_admin_access)):
+async def list_api_keys(admin_key: str = Depends(cek_akses_admin)):
     """
-    List all API keys.
-    
-    **Requires Admin Access** (X-Admin-Key header)
-    
-    Note: Actual keys are not shown, only prefixes.
+    Lihat semua API keys.
+    Key asli gak ditampilin, cuma prefix-nya aja.
     """
     keys = db_service.list_api_keys()
     
@@ -98,37 +94,30 @@ async def list_api_keys(admin_key: str = Depends(verify_admin_access)):
 
 
 @router.delete("/keys/{key_id}")
-async def revoke_api_key(
+async def cabut_api_key(
     key_id: int,
-    admin_key: str = Depends(verify_admin_access)
+    admin_key: str = Depends(cek_akses_admin)
 ):
     """
-    Revoke an API key.
-    
-    **Requires Admin Access** (X-Admin-Key header)
-    
-    Revoked keys cannot be used anymore.
+    Nonaktifkan API key.
+    Key yang dicabut gak bisa dipake lagi.
     """
-    success = db_service.revoke_api_key(key_id)
+    berhasil = db_service.cabut_api_key(key_id)
     
-    if not success:
+    if not berhasil:
         raise HTTPException(
             status_code=404,
             detail={
-                "error": "API key not found",
+                "error": "API key tidak ditemukan",
                 "error_code": "KEY_NOT_FOUND"
             }
         )
     
-    return {"success": True, "message": f"API key {key_id} has been revoked"}
+    return {"success": True, "message": f"API key {key_id} sudah dinonaktifkan"}
 
 
 @router.get("/keys/stats", response_model=APIKeyStatsResponse)
-async def get_api_key_stats(admin_key: str = Depends(verify_admin_access)):
-    """
-    Get API key statistics.
-    
-    **Requires Admin Access** (X-Admin-Key header)
-    """
-    stats = db_service.get_api_key_stats()
+async def stats_api_key(admin_key: str = Depends(cek_akses_admin)):
+    """Lihat statistik penggunaan API keys."""
+    stats = db_service.stats_api_key()
     return APIKeyStatsResponse(**stats)

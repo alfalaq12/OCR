@@ -1,3 +1,8 @@
+"""
+Modul untuk proses OCR pakai Tesseract
+Author: Tim Development
+"""
+
 import io
 import time
 import subprocess
@@ -8,164 +13,178 @@ from PIL import Image
 
 
 class OCRService:
-    """Service for OCR processing using Tesseract (direct subprocess call)"""
+    """
+    Kelas utama buat handle semua proses OCR.
+    Pake Tesseract yang dipanggil langsung via subprocess
+    biar lebih stabil dan gak ribet sama dependency.
+    """
 
     def __init__(self):
-        # Tesseract executable path
-        self.tesseract_cmd = self._find_tesseract()
-        # Poppler path for PDF conversion
-        self.poppler_path = self._find_poppler()
+        # cari lokasi tesseract waktu pertama kali init
+        self.tesseract_cmd = self._cari_tesseract()
+        self.poppler_path = self._cari_poppler()
 
-    def _find_tesseract(self) -> str:
-        """Find Tesseract executable"""
-        paths = [
+    def _cari_tesseract(self) -> str:
+        """Cari dimana tesseract diinstall"""
+        lokasi_umum = [
             r"C:\Program Files\Tesseract-OCR\tesseract.exe",
             r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-            "tesseract"
+            "/usr/bin/tesseract",  # linux
+            "/usr/local/bin/tesseract",  # mac homebrew
+            "tesseract"  # kalo udah di PATH
         ]
         
-        for path in paths:
+        for path in lokasi_umum:
             if os.path.exists(path):
                 return path
+            # coba jalanin, siapa tau ada di PATH
             try:
-                result = subprocess.run([path, "--version"], capture_output=True)
-                if result.returncode == 0:
+                hasil = subprocess.run([path, "--version"], capture_output=True)
+                if hasil.returncode == 0:
                     return path
             except FileNotFoundError:
                 continue
         
         return "tesseract"
 
-    def _find_poppler(self) -> str:
-        """Find Poppler bin directory"""
-        paths = [
+    def _cari_poppler(self) -> str:
+        """Cari folder bin poppler buat convert PDF"""
+        lokasi_umum = [
             r"C:\poppler\bin",
             r"C:\Program Files\poppler\bin",
             r"C:\poppler-24.02.0\Library\bin",
         ]
         
-        for path in paths:
+        for path in lokasi_umum:
             if os.path.exists(path):
                 return path
         
         return None
 
-    def _get_lang_code(self, language: str) -> str:
-        """Convert language param to Tesseract language code"""
-        if language == "id":
+    def _convert_bahasa(self, bahasa: str) -> str:
+        """Konversi kode bahasa ke format tesseract"""
+        if bahasa == "id":
             return "ind"
-        elif language == "en":
+        elif bahasa == "en":
             return "eng"
         else:
-            return "eng"  # Default to English to avoid missing language data error
+            # default english aja biar aman, kadang ind gak keinstall
+            return "eng"
 
-    def extract_text_from_image(self, image: Image.Image, language: str = "mixed") -> str:
-        """Extract text from a PIL Image using Tesseract subprocess"""
-        lang_code = self._get_lang_code(language)
+    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed") -> str:
+        """
+        Baca text dari gambar pake tesseract.
+        Gambar disimpen dulu ke file temp, abis itu diproses.
+        """
+        kode_bahasa = self._convert_bahasa(bahasa)
         
-        # Save image to temp file
+        # simpen ke file sementara
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            tmp_path = tmp.name
-            image.save(tmp_path, format="PNG")
+            path_temp = tmp.name
+            gambar.save(path_temp, format="PNG")
         
         try:
-            # Run Tesseract
-            cmd = [
+            # jalanin tesseract
+            perintah = [
                 self.tesseract_cmd,
-                tmp_path,
+                path_temp,
                 "stdout",
-                "-l", lang_code,
+                "-l", kode_bahasa,
                 "--oem", "3",
                 "--psm", "6"
             ]
             
-            result = subprocess.run(
-                cmd,
+            hasil = subprocess.run(
+                perintah,
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=120  # timeout 2 menit
             )
             
-            if result.returncode != 0:
-                error_msg = result.stderr or "Unknown Tesseract error"
-                raise Exception(f"Tesseract error: {error_msg}")
+            if hasil.returncode != 0:
+                pesan_error = hasil.stderr or "Gagal proses OCR"
+                raise Exception(f"Error tesseract: {pesan_error}")
             
-            output = result.stdout
+            output = hasil.stdout
             if output is None:
                 return ""
             
             return output.strip()
         
         except subprocess.TimeoutExpired:
-            raise Exception("OCR processing timeout (>120s)")
+            raise Exception("Proses OCR timeout, coba file yang lebih kecil")
         except FileNotFoundError:
-            raise Exception(f"Tesseract not found at: {self.tesseract_cmd}")
+            raise Exception(f"Tesseract gak ketemu di: {self.tesseract_cmd}")
         finally:
-            # Clean up temp file
-            if os.path.exists(tmp_path):
+            # hapus file temp
+            if os.path.exists(path_temp):
                 try:
-                    os.remove(tmp_path)
+                    os.remove(path_temp)
                 except:
                     pass
 
-    def _convert_pdf_to_images(self, file_bytes: bytes) -> list:
-        """Convert PDF to list of PIL Images"""
+    def _convert_pdf_ke_gambar(self, data_file: bytes) -> list:
+        """Convert PDF jadi list gambar buat diproses satu-satu"""
         try:
             from pdf2image import convert_from_bytes
             
-            kwargs = {"dpi": 200}
+            opsi = {"dpi": 200}
             if self.poppler_path:
-                kwargs["poppler_path"] = self.poppler_path
+                opsi["poppler_path"] = self.poppler_path
             
-            return convert_from_bytes(file_bytes, **kwargs)
+            return convert_from_bytes(data_file, **opsi)
         
         except Exception as e:
-            error_str = str(e).lower()
-            if "poppler" in error_str or "pdftoppm" in error_str:
+            pesan = str(e).lower()
+            if "poppler" in pesan or "pdftoppm" in pesan:
                 raise Exception(
-                    "Poppler is not installed or not found. "
-                    "Please install Poppler and add to PATH, or set poppler_path. "
-                    "Download from: https://github.com/osber/poppler-windows/releases"
+                    "Poppler belum diinstall. "
+                    "Download dulu dari: https://github.com/osber/poppler-windows/releases "
+                    "terus extract ke C:\\poppler"
                 )
-            raise Exception(f"PDF conversion error: {str(e)}")
+            raise Exception(f"Gagal convert PDF: {str(e)}")
 
-    def extract_text_from_bytes(
+    def proses_file(
         self,
-        file_bytes: bytes,
-        filename: str,
-        language: str = "mixed"
+        data_file: bytes,
+        nama_file: str,
+        bahasa: str = "mixed"
     ) -> Tuple[str, int, int]:
         """
-        Extract text from file bytes (image or PDF)
-        Returns: (extracted_text, page_count, processing_time_ms)
+        Fungsi utama buat proses file (gambar atau PDF).
+        Return: (text hasil, jumlah halaman, waktu proses dalam ms)
         """
-        start_time = time.time()
+        waktu_mulai = time.time()
 
-        # Check if PDF
-        is_pdf = filename.lower().endswith('.pdf')
+        # cek apakah PDF atau gambar
+        is_pdf = nama_file.lower().endswith('.pdf')
 
         if is_pdf:
-            # Convert PDF to images
-            images = self._convert_pdf_to_images(file_bytes)
-            all_text = []
+            # convert dulu ke gambar
+            list_gambar = self._convert_pdf_ke_gambar(data_file)
+            semua_text = []
 
-            for i, img in enumerate(images):
-                page_text = self.extract_text_from_image(img, language)
-                if page_text:
-                    all_text.append(f"--- Page {i + 1} ---\n{page_text}")
+            for idx, gambar in enumerate(list_gambar):
+                text_halaman = self.baca_gambar(gambar, bahasa)
+                if text_halaman:
+                    semua_text.append(f"--- Halaman {idx + 1} ---\n{text_halaman}")
 
-            text = "\n\n".join(all_text)
-            pages = len(images)
+            text_hasil = "\n\n".join(semua_text)
+            jumlah_halaman = len(list_gambar)
         else:
-            # Process as image
-            image = Image.open(io.BytesIO(file_bytes))
-            text = self.extract_text_from_image(image, language)
-            pages = 1
+            # langsung proses sebagai gambar
+            gambar = Image.open(io.BytesIO(data_file))
+            text_hasil = self.baca_gambar(gambar, bahasa)
+            jumlah_halaman = 1
 
-        processing_time = int((time.time() - start_time) * 1000)
+        waktu_proses = int((time.time() - waktu_mulai) * 1000)
 
-        return text, pages, processing_time
+        return text_hasil, jumlah_halaman, waktu_proses
+
+    # alias biar compatible sama kode lama
+    def extract_text_from_bytes(self, file_bytes, filename, language="mixed"):
+        return self.proses_file(file_bytes, filename, language)
 
 
-# Singleton instance
+# instance singleton biar gak bikin ulang terus
 ocr_service = OCRService()

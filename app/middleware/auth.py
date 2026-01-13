@@ -1,3 +1,7 @@
+"""
+Middleware untuk autentikasi dan rate limiting.
+"""
+
 from fastapi import Request, HTTPException, Security
 from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -5,12 +9,14 @@ from collections import defaultdict
 import time
 from app.config import settings
 
-# API Key header
+# header untuk API key
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
-    """Verify API key from header"""
+    """Cek API key dari header request"""
+    
+    # kalo auth dimatikan, langsung lolos
     if not settings.API_KEYS_ENABLED:
         return "anonymous"
     
@@ -18,80 +24,84 @@ async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
         raise HTTPException(
             status_code=401,
             detail={
-                "error": "API key required",
+                "error": "API key diperlukan",
                 "error_code": "AUTH_MISSING_KEY",
-                "details": "Please provide X-API-Key header"
+                "details": "Tambahin header X-API-Key"
             }
         )
     
-    # Check static keys from .env
+    # cek key statis dari .env
     if api_key in settings.API_KEYS:
         return api_key
     
-    # Check dynamic keys from database
+    # cek key dinamis dari database
     from app.services.db_service import db_service
-    key_info = db_service.validate_api_key(api_key)
-    if key_info:
+    info_key = db_service.validasi_api_key(api_key)
+    if info_key:
         return api_key
     
     raise HTTPException(
         status_code=403,
         detail={
-            "error": "Invalid API key",
+            "error": "API key tidak valid",
             "error_code": "AUTH_INVALID_KEY",
-            "details": "The provided API key is not valid"
+            "details": "Key yang dikasih salah atau sudah kadaluarsa"
         }
     )
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Rate limiting middleware"""
+    """
+    Middleware buat batasi jumlah request per menit.
+    Biar server gak overload kalo ada yang spam.
+    """
     
     def __init__(self, app, requests_per_minute: int = 30):
         super().__init__(app)
-        self.requests_per_minute = requests_per_minute
-        self.requests = defaultdict(list)
+        self.batas_per_menit = requests_per_minute
+        self.catatan_request = defaultdict(list)
     
     async def dispatch(self, request: Request, call_next):
-        # Skip rate limiting for docs and health endpoints
-        if request.url.path in ["/", "/health", "/docs", "/redoc", "/openapi.json"]:
+        # skip rate limit buat halaman dokumentasi
+        path_dikecualikan = ["/", "/health", "/docs", "/redoc", "/openapi.json"]
+        if request.url.path in path_dikecualikan:
             return await call_next(request)
         
-        # Get client identifier (API key or IP)
+        # identifikasi client dari API key atau IP
         api_key = request.headers.get("X-API-Key")
-        client_id = api_key if api_key else request.client.host
+        id_client = api_key if api_key else request.client.host
         
-        # Check rate limit
-        now = time.time()
-        minute_ago = now - 60
+        # hitung request dalam 1 menit terakhir
+        sekarang = time.time()
+        semenit_lalu = sekarang - 60
         
-        # Clean old requests
-        self.requests[client_id] = [
-            req_time for req_time in self.requests[client_id]
-            if req_time > minute_ago
+        # bersihin catatan yang udah lewat 1 menit
+        self.catatan_request[id_client] = [
+            waktu for waktu in self.catatan_request[id_client]
+            if waktu > semenit_lalu
         ]
         
-        # Check if over limit
-        if len(self.requests[client_id]) >= self.requests_per_minute:
+        # cek udah kena limit belum
+        if len(self.catatan_request[id_client]) >= self.batas_per_menit:
             from fastapi.responses import JSONResponse
             return JSONResponse(
                 status_code=429,
                 content={
                     "success": False,
-                    "error": "Rate limit exceeded",
+                    "error": "Kebanyakan request, coba lagi nanti",
                     "error_code": "RATE_LIMIT_EXCEEDED",
-                    "details": f"Maximum {self.requests_per_minute} requests per minute"
+                    "details": f"Maksimal {self.batas_per_menit} request per menit"
                 }
             )
         
-        # Record request
-        self.requests[client_id].append(now)
+        # catat request ini
+        self.catatan_request[id_client].append(sekarang)
         
-        # Add rate limit headers
+        # tambahin info rate limit di response header
         response = await call_next(request)
-        response.headers["X-RateLimit-Limit"] = str(self.requests_per_minute)
+        response.headers["X-RateLimit-Limit"] = str(self.batas_per_menit)
         response.headers["X-RateLimit-Remaining"] = str(
-            self.requests_per_minute - len(self.requests[client_id])
+            self.batas_per_menit - len(self.catatan_request[id_client])
         )
         
         return response

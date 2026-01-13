@@ -1,10 +1,14 @@
+"""
+Model Pydantic buat validasi request dan response.
+"""
+
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
 
 class OCRResponse(BaseModel):
-    """Response model for OCR extraction"""
+    """Format response hasil OCR"""
     success: bool
     text: str
     pages: int
@@ -15,20 +19,20 @@ class OCRResponse(BaseModel):
 
 
 class MinioOCRRequest(BaseModel):
-    """Request model for MinIO-based OCR"""
+    """Request buat OCR dari MinIO"""
     bucket: str
     object_key: str
     language: str = "mixed"
 
 
 class HealthResponse(BaseModel):
-    """Health check response"""
+    """Response health check"""
     status: str
     version: str
 
 
 class OCRHistoryItem(BaseModel):
-    """History item for OCR requests"""
+    """Satu item di history"""
     id: int
     filename: str
     file_size: int
@@ -41,29 +45,29 @@ class OCRHistoryItem(BaseModel):
 
 
 class OCRHistoryResponse(BaseModel):
-    """Response for history endpoint"""
+    """Response list history"""
     total: int
     items: list[OCRHistoryItem]
 
 
 class ErrorDetail(BaseModel):
-    """Detailed error response"""
+    """Format error detail"""
     success: bool = False
     error: str
     error_code: str
     details: Optional[str] = None
 
 
-# ==================== API Key Models ====================
+# Model untuk API Key management
 
 class APIKeyCreateRequest(BaseModel):
-    """Request to create new API key"""
+    """Request bikin API key baru"""
     name: str
     is_admin: bool = False
 
 
 class APIKeyResponse(BaseModel):
-    """Response after creating API key"""
+    """Response setelah bikin API key"""
     id: int
     key: str
     key_prefix: str
@@ -73,7 +77,7 @@ class APIKeyResponse(BaseModel):
 
 
 class APIKeyInfo(BaseModel):
-    """API key info (without actual key)"""
+    """Info API key (tanpa key asli)"""
     id: int
     key_prefix: str
     name: str
@@ -86,13 +90,13 @@ class APIKeyInfo(BaseModel):
 
 
 class APIKeyListResponse(BaseModel):
-    """Response for listing API keys"""
+    """Response list API keys"""
     total: int
     keys: list[APIKeyInfo]
 
 
 class APIKeyStatsResponse(BaseModel):
-    """API key statistics"""
+    """Statistik API keys"""
     total_keys: int
     active_keys: int
     revoked_keys: int

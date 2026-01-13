@@ -1,3 +1,8 @@
+"""
+Entry point aplikasi OCR API.
+Jalanin pake: python -m uvicorn app.main:app --reload
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import ocr, admin
@@ -8,34 +13,34 @@ from app.config import settings
 app = FastAPI(
     title="OCR API",
     description="""
-API untuk extract text dari dokumen scan (image/PDF).
+API untuk ekstrak text dari dokumen scan.
 
-## Features
-- 📄 Extract text dari image (PNG, JPG, TIFF, dll)
-- 📑 Extract text dari PDF (multi-page support)
-- 🌐 Support bahasa Indonesia dan English
-- 📦 Integrasi MinIO storage
-- 🔐 API Key authentication & management
-- ⏱️ Rate limiting
-- 📊 Request history & statistics
+## Fitur Utama
+- Baca text dari gambar (PNG, JPG, TIFF, dll)
+- Baca text dari PDF (support banyak halaman)
+- Support bahasa Indonesia dan Inggris
+- Integrasi dengan MinIO storage
+- Autentikasi pakai API key
+- Rate limiting biar server aman
+- History dan statistik penggunaan
+
+## Cara Pakai
+1. Upload file ke endpoint /api/ocr/extract
+2. Atau pakai file dari MinIO lewat /api/ocr/extract-from-minio
+3. Hasil OCR dikembalikan dalam format JSON
 
 ## Error Codes
-Semua error response include `error_code` untuk debugging:
-- `AUTH_xxx` - Authentication errors
-- `FILE_xxx` - File validation errors
-- `OCR_xxx` - OCR processing errors
-- `PDF_xxx` - PDF conversion errors
-- `MINIO_xxx` - MinIO storage errors
-
-## Admin Endpoints
-Untuk manage API keys, gunakan `/api/admin/keys` endpoints dengan `X-Admin-Key` header.
+- AUTH_xxx = masalah autentikasi
+- FILE_xxx = masalah file yang diupload
+- OCR_xxx = masalah waktu proses OCR
+- MINIO_xxx = masalah koneksi MinIO
     """,
-    version="1.1.0",
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# CORS middleware
+# izinin akses dari domain manapun (CORS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,31 +49,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Rate limiting middleware
+# aktifin rate limiting kalo di-enable
 if settings.RATE_LIMIT_ENABLED:
     app.add_middleware(
         RateLimitMiddleware,
         requests_per_minute=settings.RATE_LIMIT_PER_MINUTE
     )
 
-# Include routers
+# daftarin semua router
 app.include_router(ocr.router)
 app.include_router(admin.router)
 
 
 @app.get("/", response_model=HealthResponse)
-async def health_check():
-    """Health check endpoint"""
+async def root():
+    """Cek apakah server jalan"""
     return HealthResponse(
         status="healthy",
-        version="1.1.0"
+        version="1.0.0"
     )
 
 
 @app.get("/health", response_model=HealthResponse)
-async def health():
-    """Alternative health check endpoint"""
+async def health_check():
+    """Endpoint alternatif buat health check"""
     return HealthResponse(
         status="healthy",
-        version="1.1.0"
+        version="1.0.0"
     )
