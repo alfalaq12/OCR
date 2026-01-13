@@ -2,20 +2,14 @@ FROM python:3.11-slim-bookworm
 
 # Install dependencies sistem yang dibutuhkan untuk PaddleOCR & pdf2image
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # OpenCV dependencies
     libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
-    # PaddlePaddle dependencies
     libgomp1 \
-    # pdf2image dependencies (poppler)
     poppler-utils \
-    # Tambahan untuk stability
-    libgthread-2.0-0 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
