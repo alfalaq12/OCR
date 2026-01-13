@@ -4,7 +4,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - OCR_ENGINE=paddle
+      - OCR_ENGINE=tesseract
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
