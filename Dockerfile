@@ -1,22 +1,20 @@
-FROM almalinux:9-minimal
+FROM python:3.11-alpine
 
-# Install Python 3.11 dan dependencies sistem
-RUN microdnf install -y \
-    python3.11 \
-    python3.11-pip \
+# Install dependencies sistem via apk (sangat cepat)
+RUN apk add --no-cache \
     poppler-utils \
-    mesa-libGL \
+    mesa-gl \
     libgomp \
-    && microdnf clean all
-
-# Set Python 3.11 sebagai default
-RUN alternatives --set python3 /usr/bin/python3.11
+    gcc \
+    musl-dev \
+    python3-dev \
+    libffi-dev
 
 WORKDIR /app
 
 # Copy requirements dulu biar cache-nya optimal
 COPY requirements.docker.txt .
-RUN pip3.11 install --no-cache-dir -r requirements.docker.txt
+RUN pip install --no-cache-dir -r requirements.docker.txt
 
 # Copy semua source code
 COPY . .
@@ -25,4 +23,4 @@ COPY . .
 EXPOSE 8000
 
 # Jalanin server
-CMD ["python3.11", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
