@@ -8,42 +8,114 @@ API untuk extract text dari dokumen scan (image/PDF) menggunakan Tesseract OCR.
 - ✅ Extract text dari PDF (multi-page support)
 - ✅ Support bahasa Indonesia dan English
 - ✅ Upload file langsung atau dari MinIO
-- ✅ API Key authentication
+- ✅ API Key authentication & management
 - ✅ Rate limiting (30 req/min default)
 - ✅ Request history & statistics
 - ✅ Detailed error codes untuk debugging
 - ✅ Docker ready
 
+---
+
 ## Quick Start
 
-### Prerequisites
+### 🐳 Docker (Recommended - All Platforms)
 
-1. **Python 3.10+**
-2. **Tesseract OCR** - Download dari [UB-Mannheim](https://github.com/UB-Mannheim/tesseract/wiki)
-   - Install ke `C:\Program Files\Tesseract-OCR`
-   - Centang "Additional language data" → Indonesian
-3. **Poppler** (untuk PDF) - Download dan extract ke `C:\poppler`, add `C:\poppler\bin` ke PATH
-
-### Development (Local)
+Cara paling gampang untuk run di **Mac, Windows, atau Linux**:
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Clone repository
+git clone https://github.com/alfalaq12/OCR.git
+cd OCR
 
 # Copy environment file
 cp .env.example .env
 
-# Run server
-python -m uvicorn app.main:app --reload
-```
+# Edit .env sesuai kebutuhan (optional)
 
-Open API docs: http://localhost:8000/docs
-
-### Production (Docker)
-
-```bash
+# Run dengan Docker
 docker-compose up -d
 ```
+
+API ready di: **http://localhost:8000**
+
+Swagger docs: **http://localhost:8000/docs**
+
+---
+
+### 🍎 macOS (Manual)
+
+**1. Install dependencies via Homebrew:**
+```bash
+# Install Tesseract OCR
+brew install tesseract
+
+# Install language data (Indonesian)
+brew install tesseract-lang
+
+# Install Poppler (untuk PDF support)
+brew install poppler
+```
+
+**2. Setup project:**
+```bash
+# Clone repository
+git clone https://github.com/alfalaq12/OCR.git
+cd OCR
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Copy environment file
+cp .env.example .env
+```
+
+**3. Run server:**
+```bash
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+---
+
+### 🪟 Windows (Manual)
+
+**1. Install Tesseract OCR:**
+- Download installer dari: https://github.com/UB-Mannheim/tesseract/wiki
+- Pilih: `tesseract-ocr-w64-setup-5.x.x.exe`
+- Saat install, centang **"Additional language data"** → pilih **Indonesian**
+- Default install path: `C:\Program Files\Tesseract-OCR`
+
+**2. Install Poppler (untuk PDF support):**
+- Download dari: https://github.com/osber/poppler-windows/releases
+- Extract ke `C:\poppler`
+- Tambahkan `C:\poppler\bin` ke System PATH
+
+**3. Setup project:**
+```bash
+# Clone repository
+git clone https://github.com/alfalaq12/OCR.git
+cd OCR
+
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Copy environment file
+copy .env.example .env
+```
+
+**4. Run server:**
+```bash
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+---
 
 ## API Endpoints
 
@@ -56,6 +128,19 @@ docker-compose up -d
 | GET | `/api/ocr/history` | Lihat history requests |
 | GET | `/api/ocr/stats` | Lihat statistics |
 
+### Admin Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/admin/keys` | Generate API key baru |
+| GET | `/api/admin/keys` | List semua API keys |
+| DELETE | `/api/admin/keys/{id}` | Revoke API key |
+| GET | `/api/admin/keys/stats` | API key statistics |
+
+---
+
+## Usage Examples
+
 ### Upload File (curl)
 
 ```bash
@@ -63,6 +148,15 @@ curl -X POST "http://localhost:8000/api/ocr/extract" \
   -H "X-API-Key: your-api-key" \
   -F "file=@document.pdf" \
   -F "language=mixed"
+```
+
+### Generate API Key
+
+```bash
+curl -X POST "http://localhost:8000/api/admin/keys" \
+  -H "X-Admin-Key: admin-master-secret-key-change-this" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Client Pak Faris", "is_admin": false}'
 ```
 
 ### Response Format
@@ -78,6 +172,8 @@ curl -X POST "http://localhost:8000/api/ocr/extract" \
   "error_code": null
 }
 ```
+
+---
 
 ## Error Codes
 
@@ -95,14 +191,24 @@ Semua error response include `error_code` untuk debugging:
 | `PDF_CONVERSION_ERROR` | Failed to convert PDF |
 | `MINIO_OBJECT_NOT_FOUND` | File not found in MinIO |
 
+---
+
 ## Configuration
+
+Edit file `.env` untuk konfigurasi:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `API_KEYS_ENABLED` | false | Enable API key auth |
-| `API_KEYS` | - | Comma-separated API keys |
+| `ADMIN_MASTER_KEY` | - | Master key untuk admin endpoints |
 | `RATE_LIMIT_ENABLED` | true | Enable rate limiting |
 | `RATE_LIMIT_PER_MINUTE` | 30 | Max requests per minute |
 | `MINIO_ENDPOINT` | localhost:9000 | MinIO server |
 | `MINIO_ACCESS_KEY` | minioadmin | MinIO access key |
 | `MINIO_SECRET_KEY` | minioadmin | MinIO secret key |
+
+---
+
+## License
+
+MIT
