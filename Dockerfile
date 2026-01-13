@@ -1,7 +1,13 @@
 FROM python:3.11-slim-bookworm
 
-# Install dependencies sistem yang dibutuhkan untuk PaddleOCR & pdf2image
+# Install dependencies sistem untuk OCR engines & pdf2image
+# - tesseract-ocr: engine cepat untuk dokumen jelas
+# - libgl1, libglib2.0-0, dll: dependencies untuk PaddleOCR
+# - poppler-utils: untuk convert PDF ke image
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-ind \
     libgl1 \
     libglib2.0-0 \
     libsm6 \
@@ -26,6 +32,8 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Jalanin server dengan single worker dulu untuk download models
-# Setelah models terdownload, parallel processing akan aman
+# Set default engine ke tesseract (lebih cepat)
+ENV OCR_ENGINE=tesseract
+
+# Jalanin server
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

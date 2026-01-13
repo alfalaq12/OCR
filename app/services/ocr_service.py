@@ -145,78 +145,109 @@ class TesseractEngine:
 
 class OCRService:
     """
-    Service utama OCR - otomatis pilih engine terbaik.
-    Docker: pake PaddleOCR
-    Local Windows: pake Tesseract
+    Service utama OCR - support multiple engines.
     
-    Fitur performa:
+    Engine yang tersedia:
+    - tesseract: Lebih cepat, cocok untuk dokumen jelas
+    - paddle: Lebih akurat, cocok untuk dokumen buram/kurang jelas
+    
+    Fitur:
+    - Pilih engine per request
     - Image resize otomatis untuk gambar gede
     - Parallel processing untuk PDF multi-halaman
-    - Configurable DPI untuk konversi PDF
     - Thread-safe engine initialization
     """
 
     def __init__(self):
-        self._engine = None
-        self._engine_name = None
-        self._lock = __import__('threading').Lock()  # lock buat thread safety
+        self._tesseract_engine = None
+        self._paddle_engine = None
+        self._default_engine = None
+        self._default_engine_name = None
+        self._lock = __import__('threading').Lock()
+        self._available_engines = []
 
     def init_engine(self):
         """
-        Initialize engine secara eager (bukan lazy).
-        Panggil ini saat startup biar nggak ada race condition pas parallel processing.
+        Initialize semua engine yang tersedia saat startup.
         """
-        return self._get_engine()
-
-    def _get_engine(self):
-        """Lazy load engine - thread safe dengan lock"""
-        # fast path - kalau udah ada, langsung return
-        if self._engine is not None:
-            return self._engine
-        
-        # slow path - pake lock biar thread safe
         with self._lock:
-            # double check setelah dapet lock
-            if self._engine is not None:
-                return self._engine
-                
-            # coba paddle dulu
+            # try Tesseract
             try:
-                if USE_PADDLE == "paddle" or USE_PADDLE == "auto":
-                    self._engine = PaddleOCREngine()
-                    self._engine_name = "PaddleOCR"
-                    print("✅ Menggunakan PaddleOCR engine")
+                self._tesseract_engine = TesseractEngine()
+                self._available_engines.append("tesseract")
+                print("✅ Tesseract engine ready")
+            except Exception as e:
+                print(f"⚠️ Tesseract tidak tersedia: {e}")
+            
+            # try PaddleOCR
+            try:
+                if USE_PADDLE in ["paddle", "auto"]:
+                    self._paddle_engine = PaddleOCREngine()
+                    self._available_engines.append("paddle")
+                    print("✅ PaddleOCR engine ready")
             except ImportError:
-                pass
+                print("⚠️ PaddleOCR tidak tersedia (not installed)")
             except Exception as e:
                 print(f"⚠️ PaddleOCR gagal load: {e}")
             
-            # fallback ke tesseract
-            if self._engine is None:
-                try:
-                    self._engine = TesseractEngine()
-                    self._engine_name = "Tesseract"
-                    print("✅ Menggunakan Tesseract engine")
-                except Exception as e:
-                    raise Exception(f"Tidak ada OCR engine yang tersedia: {e}")
+            # set default engine
+            if USE_PADDLE == "tesseract" and self._tesseract_engine:
+                self._default_engine = self._tesseract_engine
+                self._default_engine_name = "tesseract"
+            elif USE_PADDLE == "paddle" and self._paddle_engine:
+                self._default_engine = self._paddle_engine
+                self._default_engine_name = "paddle"
+            elif self._paddle_engine:
+                self._default_engine = self._paddle_engine
+                self._default_engine_name = "paddle"
+            elif self._tesseract_engine:
+                self._default_engine = self._tesseract_engine
+                self._default_engine_name = "tesseract"
+            else:
+                raise Exception("Tidak ada OCR engine yang tersedia!")
+            
+            print(f"📌 Default engine: {self._default_engine_name}")
         
-        return self._engine
+        return self._default_engine
 
     def get_engine_name(self) -> str:
-        """Ambil nama engine yang sedang dipakai"""
-        self._get_engine()
-        return self._engine_name or "Unknown"
+        """Ambil nama default engine"""
+        return self._default_engine_name or "Unknown"
+    
+    def get_available_engines(self) -> list:
+        """Ambil daftar engine yang tersedia"""
+        return self._available_engines.copy()
 
-    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed") -> str:
-        """Baca text dari gambar"""
-        engine = self._get_engine()
-        return engine.baca_gambar(gambar)
+    def _get_engine(self, engine_name: str = None):
+        """
+        Ambil engine berdasarkan nama.
+        Kalau engine_name None atau 'auto', pakai default.
+        """
+        if engine_name is None or engine_name == "auto":
+            return self._default_engine
+        
+        engine_name = engine_name.lower()
+        
+        if engine_name == "tesseract":
+            if self._tesseract_engine is None:
+                raise Exception("Tesseract engine tidak tersedia")
+            return self._tesseract_engine
+        elif engine_name in ["paddle", "paddleocr"]:
+            if self._paddle_engine is None:
+                raise Exception("PaddleOCR engine tidak tersedia")
+            return self._paddle_engine
+        else:
+            raise Exception(f"Engine tidak dikenal: {engine_name}. Pilihan: tesseract, paddle")
+
+    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed", engine: str = None) -> str:
+        """Baca text dari gambar dengan engine yang dipilih"""
+        ocr_engine = self._get_engine(engine)
+        return ocr_engine.baca_gambar(gambar)
 
     def _convert_pdf_ke_gambar(self, data_file: bytes) -> list:
         """Convert PDF jadi list gambar dengan DPI dari config"""
         try:
             from pdf2image import convert_from_bytes
-            # DPI diambil dari config - 150 default (lebih cepet dari 200)
             return convert_from_bytes(data_file, dpi=settings.PDF_DPI)
         except Exception as e:
             pesan = str(e).lower()
@@ -227,25 +258,29 @@ class OCRService:
                 )
             raise Exception(f"Gagal convert PDF: {str(e)}")
 
-    def _proses_satu_halaman(self, args: Tuple[int, Image.Image, str]) -> Tuple[int, str]:
+    def _proses_satu_halaman(self, args: Tuple[int, Image.Image, str, str]) -> Tuple[int, str]:
         """Helper buat parallel processing - proses satu halaman PDF"""
-        idx, gambar, bahasa = args
-        text = self.baca_gambar(gambar, bahasa)
+        idx, gambar, bahasa, engine = args
+        text = self.baca_gambar(gambar, bahasa, engine)
         return idx, text
 
     def proses_file(
         self,
         data_file: bytes,
         nama_file: str,
-        bahasa: str = "mixed"
+        bahasa: str = "mixed",
+        engine: str = None
     ) -> Tuple[str, int, int]:
         """
         Proses file (gambar atau PDF).
-        Return: (text, jumlah_halaman, waktu_ms)
         
-        Optimasi:
-        - PDF: parallel processing kalo lebih dari 1 halaman
-        - Image: auto resize kalo kegedean
+        Args:
+            data_file: bytes dari file
+            nama_file: nama file (untuk deteksi PDF)
+            bahasa: bahasa dokumen (id/en/mixed)
+            engine: pilihan engine (tesseract/paddle/auto)
+        
+        Return: (text, jumlah_halaman, waktu_ms)
         """
         waktu_mulai = time.time()
 
@@ -259,22 +294,18 @@ class OCRService:
             if settings.PARALLEL_PDF_PROCESSING and jumlah_halaman > 1:
                 hasil_per_halaman = {}
                 
-                # batasi jumlah worker sesuai config
                 max_workers = min(settings.PDF_WORKERS, jumlah_halaman)
                 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    # submit semua halaman
                     futures = {
-                        executor.submit(self._proses_satu_halaman, (idx, gambar, bahasa)): idx
+                        executor.submit(self._proses_satu_halaman, (idx, gambar, bahasa, engine)): idx
                         for idx, gambar in enumerate(list_gambar)
                     }
                     
-                    # ambil hasil sesuai urutan selesai
                     for future in as_completed(futures):
                         idx, text = future.result()
                         hasil_per_halaman[idx] = text
                 
-                # susun ulang sesuai urutan halaman
                 semua_text = []
                 for idx in range(jumlah_halaman):
                     text = hasil_per_halaman.get(idx, "")
@@ -283,16 +314,15 @@ class OCRService:
                 
                 text_hasil = "\n\n".join(semua_text)
             else:
-                # sequential processing (1 halaman atau parallel disabled)
                 semua_text = []
                 for idx, gambar in enumerate(list_gambar):
-                    text_halaman = self.baca_gambar(gambar, bahasa)
+                    text_halaman = self.baca_gambar(gambar, bahasa, engine)
                     if text_halaman:
                         semua_text.append(f"--- Halaman {idx + 1} ---\n{text_halaman}")
                 text_hasil = "\n\n".join(semua_text)
         else:
             gambar = Image.open(io.BytesIO(data_file))
-            text_hasil = self.baca_gambar(gambar, bahasa)
+            text_hasil = self.baca_gambar(gambar, bahasa, engine)
             jumlah_halaman = 1
 
         waktu_proses = int((time.time() - waktu_mulai) * 1000)
@@ -300,8 +330,8 @@ class OCRService:
         return text_hasil, jumlah_halaman, waktu_proses
 
     # alias buat backward compatibility
-    def extract_text_from_bytes(self, file_bytes, filename, language="mixed"):
-        return self.proses_file(file_bytes, filename, language)
+    def extract_text_from_bytes(self, file_bytes, filename, language="mixed", engine=None):
+        return self.proses_file(file_bytes, filename, language, engine)
 
 
 # singleton instance

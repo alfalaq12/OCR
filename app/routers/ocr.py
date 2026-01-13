@@ -21,10 +21,27 @@ def cek_ekstensi_valid(nama_file: str) -> bool:
     return ext in settings.ALLOWED_EXTENSIONS
 
 
+@router.get("/engines")
+async def get_available_engines():
+    """
+    Lihat daftar OCR engine yang tersedia.
+    
+    Gunakan untuk mengetahui engine mana yang bisa dipilih saat request.
+    """
+    return {
+        "available_engines": ocr_service.get_available_engines(),
+        "default_engine": ocr_service.get_engine_name(),
+        "engine_info": {
+            "tesseract": "Lebih cepat, cocok untuk dokumen scan jelas",
+            "paddle": "Lebih akurat, cocok untuk dokumen buram/kurang jelas"
+        }
+    }
+
 @router.post("/extract", response_model=OCRResponse)
 async def extract_text(
     file: UploadFile = File(..., description="File gambar atau PDF yang akan diproses"),
     language: str = Form(default="mixed", description="Bahasa dokumen: id, en, atau mixed"),
+    engine: str = Form(default="auto", description="OCR engine: tesseract (cepat), paddle (akurat), atau auto"),
     api_key: str = Depends(verify_api_key)
 ):
     """
@@ -37,6 +54,11 @@ async def extract_text(
     - id: Bahasa Indonesia
     - en: English  
     - mixed: Deteksi otomatis (default)
+    
+    Parameter engine:
+    - tesseract: Lebih cepat, cocok untuk dokumen scan jelas
+    - paddle: Lebih akurat, cocok untuk dokumen buram/kurang jelas
+    - auto: Otomatis pilih engine default (default)
     """
     # validasi ekstensi
     if not cek_ekstensi_valid(file.filename):
@@ -111,11 +133,12 @@ async def extract_text(
         )
 
     try:
-        # proses OCR
+        # proses OCR dengan engine yang dipilih
         text, halaman, waktu_proses = ocr_service.proses_file(
             isi_file,
             file.filename,
-            language
+            language,
+            engine
         )
 
         # catat ke history
