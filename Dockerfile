@@ -1,14 +1,15 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
-# Install dependencies sistem via apk (sangat cepat)
-RUN apk add --no-cache \
+# Install dependencies sistem yang dibutuhkan
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
     poppler-utils \
-    mesa-gl \
-    libgomp \
-    gcc \
-    musl-dev \
-    python3-dev \
-    libffi-dev
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
