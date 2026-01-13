@@ -1,0 +1,11 @@
+# Requirements untuk Docker LIGHTWEIGHT (Tesseract only)
+# Build cepat ~1-2 menit, tanpa PaddleOCR
+
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pdf2image==1.17.0
+minio==7.2.3
+python-dotenv==1.0.0
+Pillow>=10.0.0
+pytesseract>=0.3.10
