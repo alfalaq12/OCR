@@ -153,15 +153,33 @@ class OCRService:
     - Image resize otomatis untuk gambar gede
     - Parallel processing untuk PDF multi-halaman
     - Configurable DPI untuk konversi PDF
+    - Thread-safe engine initialization
     """
 
     def __init__(self):
         self._engine = None
         self._engine_name = None
+        self._lock = __import__('threading').Lock()  # lock buat thread safety
+
+    def init_engine(self):
+        """
+        Initialize engine secara eager (bukan lazy).
+        Panggil ini saat startup biar nggak ada race condition pas parallel processing.
+        """
+        return self._get_engine()
 
     def _get_engine(self):
-        """Lazy load engine - biar startup cepat"""
-        if self._engine is None:
+        """Lazy load engine - thread safe dengan lock"""
+        # fast path - kalau udah ada, langsung return
+        if self._engine is not None:
+            return self._engine
+        
+        # slow path - pake lock biar thread safe
+        with self._lock:
+            # double check setelah dapet lock
+            if self._engine is not None:
+                return self._engine
+                
             # coba paddle dulu
             try:
                 if USE_PADDLE == "paddle" or USE_PADDLE == "auto":

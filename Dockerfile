@@ -20,6 +20,9 @@ COPY requirements.docker.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.docker.txt
 
+# Pre-download PaddleOCR models saat build (biar nggak race condition pas runtime)
+RUN python -c "from paddleocr import PaddleOCR; ocr = PaddleOCR(use_angle_cls=False, lang='en', show_log=True); print('Models downloaded!')"
+
 # Copy semua source code
 COPY . .
 

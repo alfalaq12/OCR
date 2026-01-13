@@ -159,6 +159,15 @@ app.include_router(ocr.router)
 app.include_router(admin.router)
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize OCR engine saat startup biar nggak race condition pas parallel processing."""
+    from app.services.ocr_service import ocr_service
+    print("🚀 Initializing OCR engine...")
+    ocr_service.init_engine()
+    print(f"✅ OCR ready! Engine: {ocr_service.get_engine_name()}")
+
+
 @app.get("/", response_model=HealthResponse, tags=["Health"])
 async def root():
     """
