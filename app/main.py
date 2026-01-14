@@ -6,10 +6,13 @@ Server dijalankan dengan: python -m uvicorn app.main:app --reload
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from app.routers import ocr, admin
 from app.models.schemas import HealthResponse
 from app.middleware.auth import RateLimitMiddleware
 from app.config import settings
+import os
 
 
 # Dokumentasi API untuk enterprise clients
@@ -157,6 +160,20 @@ if settings.RATE_LIMIT_ENABLED:
 # Register routers
 app.include_router(ocr.router)
 app.include_router(admin.router)
+
+# Mount static files untuk UI
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/ui", tags=["Health"])
+async def serve_ui():
+    """Serve documentation UI untuk client."""
+    html_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    if os.path.exists(html_path):
+        return FileResponse(html_path)
+    return {"error": "UI not found"}
 
 
 @app.on_event("startup")

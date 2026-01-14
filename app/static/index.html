@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Scanner - Digitalisasi Dokumen</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .navbar {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 48px 24px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .page-header p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg);
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(37, 99, 235, 0.02);
+        }
+
+        .upload-zone.active {
+            border-color: var(--primary);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .upload-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(37, 99, 235, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 24px;
+        }
+
+        .upload-text {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-preview {
+            display: none;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 16px;
+        }
+
+        .file-preview.show {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-remove {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 24px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-card {
+            display: none;
+        }
+
+        .result-card.show {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-stats {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .btn-copy {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-copy:hover {
+            background: var(--border);
+        }
+
+        .result-content {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+        }
+
+        .error-box {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 48px;
+            display: none;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .footer {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        @media (max-width: 640px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .result-stats {
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/ui" class="logo">
+                <div class="logo-icon">📄</div>
+                OCR Scanner
+            </a>
+            <div class="nav-links">
+                <a href="/docs">API Docs</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Digitalisasi Dokumen</h1>
+            <p>Upload dokumen scan untuk ekstraksi teks otomatis</p>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Upload Dokumen</div>
+
+            <div class="upload-zone" id="dropZone">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Pilih file atau drag & drop</div>
+                <div class="upload-hint">PNG, JPG, PDF - Maksimal 50MB</div>
+            </div>
+            <input type="file" id="fileInput" class="file-input" accept=".png,.jpg,.jpeg,.pdf,.tiff,.bmp">
+
+            <div class="file-preview" id="filePreview">
+                <span class="file-name" id="fileName">
+                    <span>✓</span>
+                    <span id="fileNameText"></span>
+                </span>
+                <button class="file-remove" id="removeBtn">×</button>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Bahasa</label>
+                    <select id="language">
+                        <option value="mixed">Otomatis</option>
+                        <option value="id">Indonesia</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Engine</label>
+                    <select id="engine">
+                        <option value="paddle">PaddleOCR (Akurat)</option>
+                        <option value="tesseract">Tesseract (Cepat)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="processBtn" disabled>
+                Proses Dokumen
+            </button>
+        </div>
+
+        <div class="card loading" id="loadingCard">
+            <div class="spinner"></div>
+            <p>Memproses dokumen...</p>
+        </div>
+
+        <div class="card result-card" id="resultCard">
+            <div class="section-title">Hasil Ekstraksi</div>
+
+            <div class="error-box" id="errorBox"></div>
+
+            <div class="result-header">
+                <div class="result-stats" id="statsBox">
+                    <div class="stat-item">
+                        <div class="stat-value" id="pageCount">0</div>
+                        <div class="stat-label">Halaman</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="timeCount">0</div>
+                        <div class="stat-label">Detik</div>
+                    </div>
+                </div>
+                <button class="btn-copy" id="copyBtn">Salin Teks</button>
+            </div>
+
+            <div class="result-content" id="resultContent"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        Document OCR Service &copy; 2026
+    </footer>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const filePreview = document.getElementById('filePreview');
+        const fileNameText = document.getElementById('fileNameText');
+        const removeBtn = document.getElementById('removeBtn');
+        const processBtn = document.getElementById('processBtn');
+        const loadingCard = document.getElementById('loadingCard');
+        const resultCard = document.getElementById('resultCard');
+        const resultContent = document.getElementById('resultContent');
+        const errorBox = document.getElementById('errorBox');
+        const statsBox = document.getElementById('statsBox');
+        const copyBtn = document.getElementById('copyBtn');
+
+        let currentFile = null;
+
+        dropZone.onclick = () => fileInput.click();
+
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('active'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('active');
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+        };
+
+        fileInput.onchange = (e) => { if (e.target.files[0]) setFile(e.target.files[0]); };
+
+        function setFile(file) {
+            currentFile = file;
+            const size = file.size < 1024 * 1024 ? (file.size / 1024).toFixed(1) + 'KB' : (file.size / 1024 / 1024).toFixed(1) + 'MB';
+            fileNameText.textContent = file.name + ' (' + size + ')';
+            filePreview.classList.add('show');
+            dropZone.style.display = 'none';
+            processBtn.disabled = false;
+        }
+
+        removeBtn.onclick = () => {
+            currentFile = null;
+            fileInput.value = '';
+            filePreview.classList.remove('show');
+            dropZone.style.display = 'block';
+            processBtn.disabled = true;
+        };
+
+        processBtn.onclick = async () => {
+            if (!currentFile) return;
+
+            loadingCard.style.display = 'block';
+            resultCard.classList.remove('show');
+            errorBox.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('language', document.getElementById('language').value);
+            formData.append('engine', document.getElementById('engine').value);
+
+            try {
+                const res = await fetch('/api/ocr/extract', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                loadingCard.style.display = 'none';
+                resultCard.classList.add('show');
+
+                if (data.success) {
+                    resultContent.textContent = data.text || '(Tidak ada teks terdeteksi)';
+                    document.getElementById('pageCount').textContent = data.pages || 0;
+                    document.getElementById('timeCount').textContent = ((data.processing_time_ms || 0) / 1000).toFixed(1);
+                    statsBox.style.display = 'flex';
+                } else {
+                    errorBox.textContent = data.error || 'Terjadi kesalahan';
+                    errorBox.style.display = 'block';
+                    statsBox.style.display = 'none';
+                    resultContent.textContent = '';
+                }
+            } catch (err) {
+                loadingCard.style.display = 'none';
+                resultCard.classList.add('show');
+                errorBox.textContent = 'Gagal terhubung ke server';
+                errorBox.style.display = 'block';
+                statsBox.style.display = 'none';
+            }
+        };
+
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(resultContent.textContent);
+            copyBtn.textContent = '✓ Tersalin';
+            setTimeout(() => copyBtn.textContent = 'Salin Teks', 2000);
+        };
+    </script>
+</body>
+
+</html>
