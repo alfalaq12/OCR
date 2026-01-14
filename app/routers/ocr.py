@@ -43,6 +43,7 @@ async def extract_text(
     language: str = Form(default="mixed", description="Bahasa dokumen: id, en, atau mixed"),
     engine: str = Form(default="auto", description="OCR engine: tesseract (cepat), paddle (akurat), atau auto"),
     enhance: bool = Form(default=False, description="Aktifkan preprocessing untuk dokumen jadul/pudar"),
+    normalize_spelling: bool = Form(default=False, description="Konversi ejaan lama (oe→u, dj→j, tj→c, dll) ke ejaan modern"),
     api_key: str = Depends(verify_api_key)
 ):
     """
@@ -64,6 +65,10 @@ async def extract_text(
     Parameter enhance:
     - true: Tingkatkan kontras gambar untuk dokumen jadul/pudar
     - false: Tanpa preprocessing (default)
+    
+    Parameter normalize_spelling:
+    - true: Konversi ejaan lama Indonesia (Van Ophuijsen/Soewandi) ke EYD modern
+    - false: Biarkan teks apa adanya (default)
     """
     # validasi ekstensi
     if not cek_ekstensi_valid(file.filename):
@@ -147,6 +152,13 @@ async def extract_text(
             enhance
         )
 
+        # Normalisasi ejaan lama jika diminta
+        normalized_text = None
+        spelling_changes = None
+        if normalize_spelling and text:
+            from app.services.spelling_normalizer import normalize_with_comparison
+            _, normalized_text, spelling_changes = normalize_with_comparison(text)
+
         # catat ke history
         db_service.catat_request(
             filename=file.filename,
@@ -162,6 +174,8 @@ async def extract_text(
         return OCRResponse(
             success=True,
             text=text,
+            normalized_text=normalized_text,
+            spelling_changes=spelling_changes,
             pages=halaman,
             language=language,
             processing_time_ms=waktu_proses

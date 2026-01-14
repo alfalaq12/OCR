@@ -32,8 +32,8 @@ class Settings:
     PARALLEL_PDF_PROCESSING: bool = os.getenv("PARALLEL_PDF_PROCESSING", _parallel_default).lower() == "true"
     PDF_WORKERS: int = int(os.getenv("PDF_WORKERS", "2"))  # kurangi default worker
     
-    # Force Tesseract saat enhance aktif (PaddleOCR + preprocessing sering crash)
-    FORCE_TESSERACT_FOR_ENHANCE: bool = os.getenv("FORCE_TESSERACT_FOR_ENHANCE", "true").lower() == "true"
+    # Force Tesseract saat enhance aktif - sekarang disabled karena pakai OpenCV preprocessing
+    FORCE_TESSERACT_FOR_ENHANCE: bool = os.getenv("FORCE_TESSERACT_FOR_ENHANCE", "false").lower() == "true"
 
     # tipe file yang diperbolehkan
     ALLOWED_EXTENSIONS: set = {"png", "jpg", "jpeg", "gif", "bmp", "tiff", "pdf"}

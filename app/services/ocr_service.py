@@ -42,38 +42,103 @@ def resize_gambar_kalau_perlu(gambar: Image.Image, max_dimension: int) -> Image.
 
 def preprocess_gambar(gambar: Image.Image, enhance: bool = True) -> Image.Image:
     """
-    Preprocessing gambar untuk dokumen jadul/pudar.
-    - Convert ke grayscale
-    - Tingkatkan contrast
-    - Denoise (optional)
+    Preprocessing gambar untuk dokumen jadul/pudar menggunakan OpenCV.
     
-    Ini membantu OCR baca dokumen scan yang pudar/buram.
+    Pipeline:
+    1. Convert ke grayscale
+    2. Denoise - hilangkan noise/bintik
+    3. CLAHE - adaptive contrast enhancement
+    4. Adaptive threshold - convert ke hitam putih dengan threshold lokal
+    5. Morphological close - sambung huruf yang putus
+    6. Morphological open - hilangkan noise kecil
+    
+    Ini sangat efektif untuk dokumen scan yang pudar/buram.
     """
     if not enhance:
         return gambar
     
-    from PIL import ImageEnhance, ImageFilter
+    try:
+        import cv2
+        import numpy as np
+        
+        # Convert PIL ke OpenCV format
+        img_array = np.array(gambar.convert('RGB'))
+        img_cv = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+        
+        # Step 1: Convert ke grayscale
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        
+        # Step 2: Denoise - hilangkan noise sambil preserve edge
+        # h=8 lebih rendah biar detail huruf tetap tajam
+        denoised = cv2.fastNlMeansDenoising(gray, None, h=5, templateWindowSize=7, searchWindowSize=21)
+        
+        # Step 3: CLAHE (Contrast Limited Adaptive Histogram Equalization)
+        # clipLimit=4.0 lebih tinggi untuk dokumen yang sangat pudar
+        clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(denoised)
+        
+        # Step 4: Adaptive thresholding - threshold berbeda per area gambar
+        # blockSize=25 optimal - tidak terlalu besar tidak terlalu kecil
+        # C=10 cukup untuk pisahkan teks dari background
+        binary = cv2.adaptiveThreshold(
+            enhanced,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            blockSize=31,  # sweet spot untuk dokumen scan
+            C=10  # cukup untuk pisahkan teks tanpa terlalu banyak noise
+        )
+        
+        # Step 5: Morphological closing - sambungkan huruf yang putus-putus
+        # Kernel 2x2 untuk menyambung bagian huruf yang terputus
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_close)
+        
+        # Step 6: Dilation ringan - tebalkan huruf sedikit biar lebih jelas
+        kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
+        dilated = cv2.dilate(closed, kernel_dilate, iterations=1)
+        
+        # Convert balik ke PIL RGB
+        result = Image.fromarray(dilated).convert('RGB')
+        return result
+        
+    except ImportError:
+        # Fallback ke PIL-only kalau OpenCV tidak tersedia
+        print("⚠️ OpenCV tidak tersedia, pakai fallback PIL preprocessing")
+        return _preprocess_pil_fallback(gambar)
+    except Exception as e:
+        print(f"⚠️ OpenCV preprocessing error: {e}, pakai fallback")
+        return _preprocess_pil_fallback(gambar)
+
+
+def _preprocess_pil_fallback(gambar: Image.Image) -> Image.Image:
+    """Fallback preprocessing pakai PIL saja kalau OpenCV tidak ada"""
+    from PIL import ImageEnhance
+    import numpy as np
     
-    # Convert ke grayscale dulu
+    # Convert ke grayscale
     if gambar.mode != 'L':
         gambar_gray = gambar.convert('L')
     else:
         gambar_gray = gambar.copy()
     
-    # Tingkatkan contrast - bikin teks lebih gelap, background lebih terang
-    enhancer = ImageEnhance.Contrast(gambar_gray)
-    gambar_contrast = enhancer.enhance(2.0)  # 2x contrast
+    # Brightness + Contrast
+    enhancer = ImageEnhance.Brightness(gambar_gray)
+    gambar_bright = enhancer.enhance(1.3)
     
-    # Tingkatkan sharpness - bikin tepi huruf lebih jelas
-    enhancer = ImageEnhance.Sharpness(gambar_contrast)
-    gambar_sharp = enhancer.enhance(1.5)  # 1.5x sharpness
+    enhancer = ImageEnhance.Contrast(gambar_bright)
+    gambar_contrast = enhancer.enhance(3.0)
     
-    # Brightness adjustment - sedikit lebih terang biar background putih
-    enhancer = ImageEnhance.Brightness(gambar_sharp)
-    gambar_bright = enhancer.enhance(1.1)  # 10% lebih terang
+    # Simple threshold
+    try:
+        img_array = np.array(gambar_contrast)
+        threshold = np.mean(img_array) + 20
+        img_binary = np.where(img_array > threshold, 255, 0).astype(np.uint8)
+        gambar_binary = Image.fromarray(img_binary, mode='L')
+    except Exception:
+        gambar_binary = gambar_contrast.point(lambda x: 255 if x > 140 else 0)
     
-    # Convert balik ke RGB untuk compatibility dengan OCR engines
-    return gambar_bright.convert('RGB')
+    return gambar_binary.convert('RGB')
 
 
 class PaddleOCREngine:

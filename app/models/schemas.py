@@ -11,6 +11,8 @@ class OCRResponse(BaseModel):
     """Format response hasil OCR"""
     success: bool
     text: str
+    normalized_text: Optional[str] = None  # Teks dengan ejaan modern (jika normalize_spelling=true)
+    spelling_changes: Optional[int] = None  # Jumlah kata yang dikonversi
     pages: int
     language: str
     processing_time_ms: int

@@ -490,6 +490,13 @@
                 </label>
             </div>
 
+            <div style="margin-top: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="normalizeSpelling" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-size: 14px;">Konversi Ejaan Lama (oe→u, dj→j, tj→c, dll)</span>
+                </label>
+            </div>
+
             <button class="btn btn-primary" id="processBtn" disabled>
                 Proses Dokumen
             </button>
@@ -518,6 +525,41 @@
                 </div>
                 <button class="btn-copy" id="copyBtn">Salin Teks</button>
             </div>
+
+            <!-- Tabs untuk Original/Normalized -->
+            <div class="text-tabs" id="textTabs" style="display: none; margin-bottom: 16px;">
+                <button class="tab-btn active" id="tabOriginal" onclick="showTab('original')">Teks Asli</button>
+                <button class="tab-btn" id="tabNormalized" onclick="showTab('normalized')">Ejaan Modern <span
+                        id="changeCount"
+                        style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 4px;">0</span></button>
+            </div>
+
+            <style>
+                .text-tabs {
+                    display: flex;
+                    gap: 8px;
+                }
+
+                .tab-btn {
+                    padding: 8px 16px;
+                    border: 1px solid var(--border);
+                    background: var(--bg);
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: all 0.2s;
+                }
+
+                .tab-btn.active {
+                    background: var(--primary);
+                    color: white;
+                    border-color: var(--primary);
+                }
+
+                .tab-btn:hover:not(.active) {
+                    background: var(--border);
+                }
+            </style>
 
             <div class="split-view">
                 <div class="preview-panel" id="previewPanel">
@@ -591,6 +633,7 @@
             formData.append('language', document.getElementById('language').value);
             formData.append('engine', document.getElementById('engine').value);
             formData.append('enhance', document.getElementById('enhance').checked);
+            formData.append('normalize_spelling', document.getElementById('normalizeSpelling').checked);
 
             try {
                 const res = await fetch('/api/ocr/extract', { method: 'POST', body: formData });
@@ -600,8 +643,23 @@
                 resultCard.classList.add('show');
 
                 if (data.success) {
-                    resultContent.textContent = data.text || '(Tidak ada teks terdeteksi)';
+                    // Store both texts for tab switching
+                    window.originalText = data.text || '(Tidak ada teks terdeteksi)';
+                    window.normalizedText = data.normalized_text || null;
+
+                    resultContent.textContent = window.originalText;
                     document.getElementById('pageCount').textContent = data.pages || 0;
+
+                    // Show/hide tabs based on normalized text availability
+                    const textTabs = document.getElementById('textTabs');
+                    if (window.normalizedText && data.spelling_changes > 0) {
+                        textTabs.style.display = 'flex';
+                        document.getElementById('changeCount').textContent = data.spelling_changes;
+                        document.getElementById('tabOriginal').classList.add('active');
+                        document.getElementById('tabNormalized').classList.remove('active');
+                    } else {
+                        textTabs.style.display = 'none';
+                    }
                     document.getElementById('timeCount').textContent = ((data.processing_time_ms || 0) / 1000).toFixed(1);
                     statsBox.style.display = 'flex';
 
@@ -663,6 +721,22 @@
             copyBtn.textContent = '✓ Tersalin';
             setTimeout(() => copyBtn.textContent = 'Salin Teks', 2000);
         };
+
+        // Tab switching function for original/normalized text
+        function showTab(tab) {
+            const tabOriginal = document.getElementById('tabOriginal');
+            const tabNormalized = document.getElementById('tabNormalized');
+
+            if (tab === 'original') {
+                resultContent.textContent = window.originalText;
+                tabOriginal.classList.add('active');
+                tabNormalized.classList.remove('active');
+            } else {
+                resultContent.textContent = window.normalizedText || window.originalText;
+                tabNormalized.classList.add('active');
+                tabOriginal.classList.remove('active');
+            }
+        }
     </script>
 </body>
 
