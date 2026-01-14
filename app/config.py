@@ -23,8 +23,17 @@ class Settings:
     PDF_DPI: int = int(os.getenv("PDF_DPI", "150"))  # 150 lebih cepat, 200 lebih akurat
     USE_ANGLE_CLS: bool = os.getenv("USE_ANGLE_CLS", "false").lower() == "true"  # matiin kalo dokumen udah lurus
     MAX_IMAGE_DIMENSION: int = int(os.getenv("MAX_IMAGE_DIMENSION", "2000"))  # resize gambar gede
-    PARALLEL_PDF_PROCESSING: bool = os.getenv("PARALLEL_PDF_PROCESSING", "true").lower() == "true"  # proses halaman paralel
-    PDF_WORKERS: int = int(os.getenv("PDF_WORKERS", "4"))  # jumlah worker untuk parallel processing
+    
+    # Deteksi environment Docker - matikan parallel processing untuk stabilitas
+    IS_DOCKER: bool = os.path.exists("/.dockerenv") or os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
+    
+    # Parallel processing - auto disable di Docker untuk mencegah crash
+    _parallel_default = "false" if IS_DOCKER else "true"
+    PARALLEL_PDF_PROCESSING: bool = os.getenv("PARALLEL_PDF_PROCESSING", _parallel_default).lower() == "true"
+    PDF_WORKERS: int = int(os.getenv("PDF_WORKERS", "2"))  # kurangi default worker
+    
+    # Force Tesseract saat enhance aktif (PaddleOCR + preprocessing sering crash)
+    FORCE_TESSERACT_FOR_ENHANCE: bool = os.getenv("FORCE_TESSERACT_FOR_ENHANCE", "true").lower() == "true"
 
     # tipe file yang diperbolehkan
     ALLOWED_EXTENSIONS: set = {"png", "jpg", "jpeg", "gif", "bmp", "tiff", "pdf"}

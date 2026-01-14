@@ -277,6 +277,11 @@ class OCRService:
 
     def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed", engine: str = None, enhance: bool = False) -> str:
         """Baca text dari gambar dengan engine yang dipilih"""
+        # Force Tesseract saat enhance aktif untuk mencegah crash PaddleOCR
+        if enhance and settings.FORCE_TESSERACT_FOR_ENHANCE and self._tesseract_engine:
+            engine = "tesseract"
+            print(f"🔄 Auto-switch ke Tesseract karena enhance=true")
+        
         # Preprocessing untuk dokumen jadul/pudar
         if enhance:
             gambar = preprocess_gambar(gambar, enhance=True)
