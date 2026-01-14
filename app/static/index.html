@@ -91,9 +91,48 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 48px 24px;
+        }
+
+        .container.narrow {
+            max-width: 800px;
+        }
+
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .preview-panel {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 500px;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preview-panel img {
+            max-width: 100%;
+            max-height: 450px;
+            object-fit: contain;
+        }
+
+        .preview-panel .pdf-notice {
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 900px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
         }
 
         .page-header {
@@ -480,7 +519,14 @@
                 <button class="btn-copy" id="copyBtn">Salin Teks</button>
             </div>
 
-            <div class="result-content" id="resultContent"></div>
+            <div class="split-view">
+                <div class="preview-panel" id="previewPanel">
+                    <div class="pdf-notice" id="previewPlaceholder">Preview akan muncul di sini</div>
+                    <img id="previewImage" style="display: none;">
+                    <iframe id="previewPdf" style="display: none; width: 100%; height: 450px; border: none;"></iframe>
+                </div>
+                <div class="result-content" id="resultContent"></div>
+            </div>
         </div>
     </div>
 
@@ -558,6 +604,29 @@
                     document.getElementById('pageCount').textContent = data.pages || 0;
                     document.getElementById('timeCount').textContent = ((data.processing_time_ms || 0) / 1000).toFixed(1);
                     statsBox.style.display = 'flex';
+
+                    // Show file preview
+                    const previewImage = document.getElementById('previewImage');
+                    const previewPlaceholder = document.getElementById('previewPlaceholder');
+
+                    if (currentFile.type.startsWith('image/')) {
+                        // Image preview
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            previewImage.src = e.target.result;
+                            previewImage.style.display = 'block';
+                            previewPlaceholder.style.display = 'none';
+                        };
+                        reader.readAsDataURL(currentFile);
+                    } else {
+                        // PDF - show in iframe
+                        previewImage.style.display = 'none';
+                        previewPlaceholder.style.display = 'none';
+                        const previewPdf = document.getElementById('previewPdf');
+                        const pdfUrl = URL.createObjectURL(currentFile);
+                        previewPdf.src = pdfUrl;
+                        previewPdf.style.display = 'block';
+                    }
                 } else {
                     errorBox.textContent = data.error || 'Terjadi kesalahan';
                     errorBox.style.display = 'block';
@@ -574,7 +643,23 @@
         };
 
         copyBtn.onclick = () => {
-            navigator.clipboard.writeText(resultContent.textContent);
+            const text = resultContent.textContent;
+
+            // Fallback untuk HTTP (non-HTTPS)
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text);
+            } else {
+                // Fallback method untuk HTTP
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+
             copyBtn.textContent = '✓ Tersalin';
             setTimeout(() => copyBtn.textContent = 'Salin Teks', 2000);
         };
