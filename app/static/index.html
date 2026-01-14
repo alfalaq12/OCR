@@ -444,6 +444,13 @@
                 </div>
             </div>
 
+            <div style="margin-top: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="enhance" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-size: 14px;">Dokumen Jadul/Pudar (Tingkatkan Kontras)</span>
+                </label>
+            </div>
+
             <button class="btn btn-primary" id="processBtn" disabled>
                 Proses Dokumen
             </button>
@@ -537,6 +544,7 @@
             formData.append('file', currentFile);
             formData.append('language', document.getElementById('language').value);
             formData.append('engine', document.getElementById('engine').value);
+            formData.append('enhance', document.getElementById('enhance').checked);
 
             try {
                 const res = await fetch('/api/ocr/extract', { method: 'POST', body: formData });

@@ -40,6 +40,42 @@ def resize_gambar_kalau_perlu(gambar: Image.Image, max_dimension: int) -> Image.
     return gambar.resize((new_width, new_height), Image.LANCZOS)
 
 
+def preprocess_gambar(gambar: Image.Image, enhance: bool = True) -> Image.Image:
+    """
+    Preprocessing gambar untuk dokumen jadul/pudar.
+    - Convert ke grayscale
+    - Tingkatkan contrast
+    - Denoise (optional)
+    
+    Ini membantu OCR baca dokumen scan yang pudar/buram.
+    """
+    if not enhance:
+        return gambar
+    
+    from PIL import ImageEnhance, ImageFilter
+    
+    # Convert ke grayscale dulu
+    if gambar.mode != 'L':
+        gambar_gray = gambar.convert('L')
+    else:
+        gambar_gray = gambar.copy()
+    
+    # Tingkatkan contrast - bikin teks lebih gelap, background lebih terang
+    enhancer = ImageEnhance.Contrast(gambar_gray)
+    gambar_contrast = enhancer.enhance(2.0)  # 2x contrast
+    
+    # Tingkatkan sharpness - bikin tepi huruf lebih jelas
+    enhancer = ImageEnhance.Sharpness(gambar_contrast)
+    gambar_sharp = enhancer.enhance(1.5)  # 1.5x sharpness
+    
+    # Brightness adjustment - sedikit lebih terang biar background putih
+    enhancer = ImageEnhance.Brightness(gambar_sharp)
+    gambar_bright = enhancer.enhance(1.1)  # 10% lebih terang
+    
+    # Convert balik ke RGB untuk compatibility dengan OCR engines
+    return gambar_bright.convert('RGB')
+
+
 class PaddleOCREngine:
     """OCR engine pake PaddleOCR - lebih akurat dan cepat"""
     
@@ -239,8 +275,12 @@ class OCRService:
         else:
             raise Exception(f"Engine tidak dikenal: {engine_name}. Pilihan: tesseract, paddle")
 
-    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed", engine: str = None) -> str:
+    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed", engine: str = None, enhance: bool = False) -> str:
         """Baca text dari gambar dengan engine yang dipilih"""
+        # Preprocessing untuk dokumen jadul/pudar
+        if enhance:
+            gambar = preprocess_gambar(gambar, enhance=True)
+        
         ocr_engine = self._get_engine(engine)
         return ocr_engine.baca_gambar(gambar)
 
@@ -258,10 +298,10 @@ class OCRService:
                 )
             raise Exception(f"Gagal convert PDF: {str(e)}")
 
-    def _proses_satu_halaman(self, args: Tuple[int, Image.Image, str, str]) -> Tuple[int, str]:
+    def _proses_satu_halaman(self, args: Tuple[int, Image.Image, str, str, bool]) -> Tuple[int, str]:
         """Helper buat parallel processing - proses satu halaman PDF"""
-        idx, gambar, bahasa, engine = args
-        text = self.baca_gambar(gambar, bahasa, engine)
+        idx, gambar, bahasa, engine, enhance = args
+        text = self.baca_gambar(gambar, bahasa, engine, enhance)
         return idx, text
 
     def proses_file(
@@ -269,7 +309,8 @@ class OCRService:
         data_file: bytes,
         nama_file: str,
         bahasa: str = "mixed",
-        engine: str = None
+        engine: str = None,
+        enhance: bool = False
     ) -> Tuple[str, int, int]:
         """
         Proses file (gambar atau PDF).
@@ -279,6 +320,7 @@ class OCRService:
             nama_file: nama file (untuk deteksi PDF)
             bahasa: bahasa dokumen (id/en/mixed)
             engine: pilihan engine (tesseract/paddle/auto)
+            enhance: aktifkan preprocessing untuk dokumen jadul/pudar
         
         Return: (text, jumlah_halaman, waktu_ms)
         """
@@ -298,7 +340,7 @@ class OCRService:
                 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._proses_satu_halaman, (idx, gambar, bahasa, engine)): idx
+                        executor.submit(self._proses_satu_halaman, (idx, gambar, bahasa, engine, enhance)): idx
                         for idx, gambar in enumerate(list_gambar)
                     }
                     
@@ -316,13 +358,13 @@ class OCRService:
             else:
                 semua_text = []
                 for idx, gambar in enumerate(list_gambar):
-                    text_halaman = self.baca_gambar(gambar, bahasa, engine)
+                    text_halaman = self.baca_gambar(gambar, bahasa, engine, enhance)
                     if text_halaman:
                         semua_text.append(f"--- Halaman {idx + 1} ---\n{text_halaman}")
                 text_hasil = "\n\n".join(semua_text)
         else:
             gambar = Image.open(io.BytesIO(data_file))
-            text_hasil = self.baca_gambar(gambar, bahasa, engine)
+            text_hasil = self.baca_gambar(gambar, bahasa, engine, enhance)
             jumlah_halaman = 1
 
         waktu_proses = int((time.time() - waktu_mulai) * 1000)

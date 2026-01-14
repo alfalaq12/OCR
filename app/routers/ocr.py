@@ -42,6 +42,7 @@ async def extract_text(
     file: UploadFile = File(..., description="File gambar atau PDF yang akan diproses"),
     language: str = Form(default="mixed", description="Bahasa dokumen: id, en, atau mixed"),
     engine: str = Form(default="auto", description="OCR engine: tesseract (cepat), paddle (akurat), atau auto"),
+    enhance: bool = Form(default=False, description="Aktifkan preprocessing untuk dokumen jadul/pudar"),
     api_key: str = Depends(verify_api_key)
 ):
     """
@@ -59,6 +60,10 @@ async def extract_text(
     - tesseract: Lebih cepat, cocok untuk dokumen scan jelas
     - paddle: Lebih akurat, cocok untuk dokumen buram/kurang jelas
     - auto: Otomatis pilih engine default (default)
+    
+    Parameter enhance:
+    - true: Tingkatkan kontras gambar untuk dokumen jadul/pudar
+    - false: Tanpa preprocessing (default)
     """
     # validasi ekstensi
     if not cek_ekstensi_valid(file.filename):
@@ -138,7 +143,8 @@ async def extract_text(
             isi_file,
             file.filename,
             language,
-            engine
+            engine,
+            enhance
         )
 
         # catat ke history
