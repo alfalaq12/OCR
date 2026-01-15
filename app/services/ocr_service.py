@@ -144,13 +144,16 @@ def _sharpen_text(img_gray, cv2, np):
 
 def preprocess_gambar(gambar: Image.Image, enhance: bool = True) -> Image.Image:
     """
-    Preprocessing SEDERHANA untuk dokumen jadul/pudar.
+    Preprocessing KUAT untuk dokumen jadul/pudar.
     
-    Pendekatan minimal yang TERBUKTI BEKERJA:
+    Fitur:
     1. Convert ke grayscale
-    2. CLAHE saja - adaptive contrast tanpa bikin gambar rusak
+    2. Hilangkan warna kuning/coklat kertas tua (jika berwarna)
+    3. CLAHE - adaptive contrast enhancement
+    4. Morphological dilation - TEBALKAN teks yang tipis/pudar
+    5. Unsharp masking - pertajam teks
     
-    Output: Grayscale yang di-enhance - PaddleOCR lebih akurat dengan grayscale.
+    Output: Grayscale yang sudah di-enhance dengan teks lebih tebal dan gelap.
     """
     if not enhance:
         return gambar
@@ -163,18 +166,52 @@ def preprocess_gambar(gambar: Image.Image, enhance: bool = True) -> Image.Image:
         img_array = np.array(gambar.convert('RGB'))
         img_cv = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
         
-        # Convert ke grayscale
-        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        # STEP 1: Hilangkan warna kuning/coklat dari kertas tua
+        # Konversi ke LAB dan neutralize warna
+        try:
+            lab = cv2.cvtColor(img_cv, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            # Neutralize a,b channels (hilangkan warna kuning)
+            neutral_a = np.full_like(a, 128)
+            neutral_b = np.full_like(b, 128)
+            lab_neutral = cv2.merge([l, neutral_a, neutral_b])
+            img_neutral = cv2.cvtColor(lab_neutral, cv2.COLOR_LAB2BGR)
+            gray = cv2.cvtColor(img_neutral, cv2.COLOR_BGR2GRAY)
+            print("✅ Step 1: Warna kuning dihilangkan")
+        except Exception:
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
         
-        # HANYA CLAHE - ini cukup untuk tingkatkan kontras tanpa merusak gambar
-        # clipLimit=3.0 adalah sweet spot - tidak terlalu tinggi, tidak terlalu rendah
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        # STEP 2: CLAHE - tingkatkan kontras secara adaptif
+        # clipLimit lebih tinggi (4.0) untuk dokumen yang sangat pudar
+        clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(gray)
+        print("✅ Step 2: Kontras ditingkatkan (CLAHE)")
+        
+        # STEP 3: Morphological DILATION - TEBALKAN teks yang tipis
+        # Kernel kecil (2x2) supaya huruf tidak menyatu
+        kernel = np.ones((2, 2), np.uint8)
+        # Invert dulu (teks jadi putih), dilate, lalu invert balik
+        inverted = cv2.bitwise_not(enhanced)
+        dilated = cv2.dilate(inverted, kernel, iterations=1)
+        thickened = cv2.bitwise_not(dilated)
+        print("✅ Step 3: Teks ditebalkan (Morphological)")
+        
+        # STEP 4: Unsharp masking - pertajam tepi huruf
+        blurred = cv2.GaussianBlur(thickened, (0, 0), 2)
+        sharpened = cv2.addWeighted(thickened, 1.8, blurred, -0.8, 0)
+        print("✅ Step 4: Teks dipertajam (Unsharp)")
+        
+        # STEP 5: Final contrast boost - gelapin teks lebih lagi
+        # Pake simple contrast adjustment
+        alpha = 1.3  # contrast multiplier
+        beta = -30   # brightness offset (negatif = lebih gelap)
+        final = cv2.convertScaleAbs(sharpened, alpha=alpha, beta=beta)
+        print("✅ Step 5: Kontras final disesuaikan")
         
         # Convert balik ke PIL RGB
-        result = Image.fromarray(enhanced).convert('RGB')
+        result = Image.fromarray(final).convert('RGB')
         
-        print("✅ Preprocessing selesai: CLAHE only")
+        print("✅ Preprocessing selesai: Dokumen jadul enhanced!")
         return result
         
     except ImportError:
@@ -184,6 +221,7 @@ def preprocess_gambar(gambar: Image.Image, enhance: bool = True) -> Image.Image:
     except Exception as e:
         print(f"⚠️ OpenCV preprocessing error: {e}, pakai fallback")
         return _preprocess_pil_fallback(gambar)
+
 
 
 def _preprocess_pil_fallback(gambar: Image.Image) -> Image.Image:

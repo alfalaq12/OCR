@@ -369,7 +369,92 @@
             overflow-y: auto;
             font-size: 14px;
             line-height: 1.8;
+        }
+
+        .result-content.raw-text {
             white-space: pre-wrap;
+        }
+
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .result-table tr {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-table tr:last-child {
+            border-bottom: none;
+        }
+
+        .result-table td {
+            padding: 8px 12px;
+            vertical-align: top;
+        }
+
+        .result-table td:first-child {
+            font-weight: 600;
+            color: var(--text-muted);
+            width: 40%;
+            white-space: nowrap;
+        }
+
+        .result-table td:last-child {
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .result-table tr:nth-child(even) {
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .result-table tr:hover {
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        /* Horizontal text display styles */
+        .horizontal-text {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .text-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            gap: 4px;
+        }
+
+        .text-row:last-child {
+            border-bottom: none;
+        }
+
+        .text-row:first-child {
+            font-weight: 600;
+            background: rgba(37, 99, 235, 0.05);
+            padding: 10px 8px;
+            border-radius: 6px 6px 0 0;
+            margin: -4px -8px 4px -8px;
+            padding-left: 16px;
+        }
+
+        .text-item {
+            display: inline;
+            padding: 2px 8px;
+            color: var(--text);
+        }
+
+        .separator {
+            color: var(--text-muted);
+            opacity: 0.5;
+            padding: 0 4px;
+        }
+
+        .text-row:hover:not(:first-child) {
+            background: rgba(37, 99, 235, 0.03);
         }
 
         .error-box {
@@ -655,7 +740,7 @@
                     window.originalText = data.text || '(Tidak ada teks terdeteksi)';
                     window.normalizedText = data.normalized_text || null;
 
-                    resultContent.textContent = window.originalText;
+                    displayFormattedText(window.originalText);
                     document.getElementById('pageCount').textContent = data.pages || 0;
 
                     // Show/hide tabs based on normalized text availability
@@ -736,13 +821,80 @@
             const tabNormalized = document.getElementById('tabNormalized');
 
             if (tab === 'original') {
-                resultContent.textContent = window.originalText;
+                displayFormattedText(window.originalText);
                 tabOriginal.classList.add('active');
                 tabNormalized.classList.remove('active');
             } else {
-                resultContent.textContent = window.normalizedText || window.originalText;
+                displayFormattedText(window.normalizedText || window.originalText);
                 tabNormalized.classList.add('active');
                 tabOriginal.classList.remove('active');
+            }
+        }
+
+        // Function to format text as horizontal inline display
+        function formatTextAsTable(text) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+
+            if (lines.length < 2) {
+                return null;
+            }
+
+            // Format as horizontal inline text with separators
+            // Each line becomes an inline item separated by " | "
+            let html = '<div class="horizontal-text">';
+
+            // Group lines into logical rows (detect if line starts with number = new data row)
+            let currentRow = [];
+            let rows = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                // Check if this line starts a new numbered row (e.g., "1.", "2.", etc.)
+                const isNumberedRow = /^\d+\.?\s/.test(line);
+
+                if (isNumberedRow && currentRow.length > 0) {
+                    rows.push(currentRow);
+                    currentRow = [line];
+                } else {
+                    currentRow.push(line);
+                }
+            }
+
+            // Don't forget the last row
+            if (currentRow.length > 0) {
+                rows.push(currentRow);
+            }
+
+            // Build horizontal display
+            for (let i = 0; i < rows.length; i++) {
+                const rowItems = rows[i];
+                html += '<div class="text-row">';
+                html += rowItems.map(item => `<span class="text-item">${escapeHtml(item)}</span>`).join('<span class="separator">|</span>');
+                html += '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Function to display formatted text (table or raw)
+        function displayFormattedText(text) {
+            const tableHtml = formatTextAsTable(text);
+
+            if (tableHtml) {
+                resultContent.innerHTML = tableHtml;
+                resultContent.classList.remove('raw-text');
+            } else {
+                resultContent.textContent = text;
+                resultContent.classList.add('raw-text');
             }
         }
     </script>

@@ -181,20 +181,61 @@ KAMUS_DOKUMEN.update(NAMA_INDONESIA)
 # ============================================================================
 
 PHRASE_CORRECTIONS = {
-    # Header dokumen yang sering salah
+    # Header dokumen yang sering salah - DEPARTEMEN
+    "departntn": "departemen",
+    "departtmen": "departemen",
+    "departnen": "departemen",
+    "departmon": "departemen",
+    "departomon": "departemen",
+    "depatemen": "departemen",
+    "dopartemen": "departemen",
+    "departemn": "departemen",
+    "deprtemen": "departemen",
+    "dpartemen": "departemen",
+    "departemem": "departemen",
+    "departnen": "departemen",
+    
+    # PEKERJAAN UMUM
     "pcaai": "pekerjaan",
     "pkaai": "pekerjaan",
     "pkerjaan": "pekerjaan",
     "pekrjaan": "pekerjaan",
     "pekerjan": "pekerjaan",
+    "ptsyaai": "pekerjaan",
+    "pekerjaa": "pekerjaan",
+    "pokerjan": "pekerjaan",
+    "pckerjaan": "pekerjaan",
+    "pekcrjaan": "pekerjaan",
+    
+    # Combined header errors
+    "departntnptsyaai": "departemen pekerjaan umum",
+    "departntnpcaai": "departemen pekerjaan umum",
+    "departomenpekerjaan": "departemen pekerjaan umum",
+    
+    # PUSAT DJAWATAN GEDUNG NEGARA
+    "camat": "djawatan",
+    "caagtcigara": "gedung negara",
+    "tenggara": "gedung negara",
+    "pusatcaagtcigara": "pusat djawatan gedung negara",
+    "pusat camat tenggara": "pusat djawatan gedung negara",
     
     # Instansi
-    "pusatcaagtcigara": "pusat djawatan gedung negara",
     "djawaton": "djawatan",
+    "djawuten": "djawatan",
+    "djwatan": "djawatan",
     "gecung": "gedung",
+    "gedun": "gedung",
+    "gsdung": "gedung",
     "negera": "negara",
     "nogara": "negara",
+    "negora": "negara",
     "nfg": "negara",
+    "ngara": "negara",
+    
+    # KETERANGAN PENUNDJUKAN
+    "kantor angka": "keterangan",
+    "angka penunjukan": "penundjukan",
+    "penunjukan": "penundjukan",
     
     # Alamat
     "jkrtn": "jakarta",
@@ -389,9 +430,68 @@ def correct_word(kata: str) -> str:
     return corrected if corrected else kata
 
 
+# Multi-word phrase corrections (run before word-by-word correction)
+MULTI_WORD_CORRECTIONS = {
+    # Header dokumen pemerintah lama
+    "pusat camat tenggara": "pusat djawatan gedung negara",
+    "pusat camat tenagara": "pusat djawatan gedung negara",
+    "pusat caamat tanggara": "pusat djawatan gedung negara",
+    "pusat djawatan gedung2 negara": "pusat djawatan gedung negara",
+    "kantor angka penunjukan": "keterangan penundjukan",
+    "angka penunjukan rumah": "penundjukan rumah",
+    "rumah ng utara": "rumah negara",
+    "departemen ptsyaai dan tenaga": "departemen pekerjaan umum dan tenaga",
+    "departntnptsyaai dan tenaga": "departemen pekerjaan umum dan tenaga",
+    "departemen pcaai dan tenaga": "departemen pekerjaan umum dan tenaga",
+    "departma perumahan": "departemen perumahan",
+    "untul monciari rumah": "untuk menghuni rumah",
+    "untuk monciari rumah": "untuk menghuni rumah",
+    "bercgs-r-an surat": "berdasarkan surat",
+    "barcgs-r-an surat": "berdasarkan surat",
+    "keterangan lantai": "keterangan lain-lain",
+    "d juml.h penghuni": "djumlah penghuni",
+    "d jumlh penghuni": "djumlah penghuni",
+    "juml.h penghuni": "djumlah penghuni",
+}
+
+
+def _apply_multi_word_corrections(text: str) -> str:
+    """
+    Apply multi-word phrase corrections.
+    Case-insensitive matching, preserve original case style.
+    """
+    text_lower = text.lower()
+    result = text
+    
+    for wrong, correct in MULTI_WORD_CORRECTIONS.items():
+        # Find case-insensitive
+        idx = text_lower.find(wrong)
+        if idx != -1:
+            # Get original segment to check case
+            original_segment = result[idx:idx+len(wrong)]
+            
+            # Determine case style
+            if original_segment.isupper():
+                replacement = correct.upper()
+            elif original_segment[0].isupper():
+                replacement = correct.title()
+            else:
+                replacement = correct
+            
+            # Replace
+            result = result[:idx] + replacement + result[idx+len(wrong):]
+            text_lower = result.lower()  # Update for next iteration
+            print(f"📝 Koreksi frasa: '{wrong}' -> '{correct}'")
+    
+    return result
+
+
 def correct_text(text: str) -> str:
     """
     Koreksi seluruh teks menggunakan kamus.
+    
+    1. Apply multi-word phrase corrections first
+    2. Then word-by-word corrections
     
     Args:
         text: Teks hasil OCR
@@ -402,7 +502,10 @@ def correct_text(text: str) -> str:
     if not text or not HAS_RAPIDFUZZ:
         return text
     
-    # Split berdasarkan whitespace dan non-word characters
+    # Step 1: Apply multi-word phrase corrections first
+    text = _apply_multi_word_corrections(text)
+    
+    # Step 2: Split berdasarkan whitespace dan non-word characters
     # Preserve delimiter untuk reconstruct
     tokens = re.findall(r'\S+|\s+', text)
     
@@ -436,6 +539,9 @@ def correct_with_stats(text: str) -> Tuple[str, int]:
     """
     if not text or not HAS_RAPIDFUZZ:
         return text, 0
+    
+    # Apply multi-word phrase corrections first
+    text = _apply_multi_word_corrections(text)
     
     tokens = re.findall(r'\S+|\s+', text)
     
