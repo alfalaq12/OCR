@@ -44,6 +44,7 @@ async def extract_text(
     engine: str = Form(default="auto", description="OCR engine: tesseract (cepat), paddle (akurat), atau auto"),
     enhance: bool = Form(default=False, description="Aktifkan preprocessing untuk dokumen jadul/pudar"),
     normalize_spelling: bool = Form(default=False, description="Konversi ejaan lama (oe→u, dj→j, tj→c, dll) ke ejaan modern"),
+    use_dictionary: bool = Form(default=False, description="Koreksi kata menggunakan kamus Indonesia"),
     api_key: str = Depends(verify_api_key)
 ):
     """
@@ -69,6 +70,10 @@ async def extract_text(
     Parameter normalize_spelling:
     - true: Konversi ejaan lama Indonesia (Van Ophuijsen/Soewandi) ke EYD modern
     - false: Biarkan teks apa adanya (default)
+    
+    Parameter use_dictionary:
+    - true: Koreksi kata yang salah menggunakan kamus Indonesia
+    - false: Tanpa koreksi kamus (default)
     """
     # validasi ekstensi
     if not cek_ekstensi_valid(file.filename):
@@ -155,9 +160,22 @@ async def extract_text(
         # Normalisasi ejaan lama jika diminta
         normalized_text = None
         spelling_changes = None
+        text_to_process = text
+        
         if normalize_spelling and text:
             from app.services.spelling_normalizer import normalize_with_comparison
             _, normalized_text, spelling_changes = normalize_with_comparison(text)
+            text_to_process = normalized_text
+        
+        # Koreksi dengan kamus Indonesia jika diminta
+        dictionary_corrections = None
+        if use_dictionary and text_to_process:
+            from app.services.dictionary_corrector import correct_with_stats
+            corrected_text, dictionary_corrections = correct_with_stats(text_to_process)
+            if normalize_spelling:
+                normalized_text = corrected_text
+            else:
+                normalized_text = corrected_text
 
         # catat ke history
         db_service.catat_request(
@@ -176,6 +194,7 @@ async def extract_text(
             text=text,
             normalized_text=normalized_text,
             spelling_changes=spelling_changes,
+            dictionary_corrections=dictionary_corrections,
             pages=halaman,
             language=language,
             processing_time_ms=waktu_proses

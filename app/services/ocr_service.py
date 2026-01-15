@@ -40,19 +40,117 @@ def resize_gambar_kalau_perlu(gambar: Image.Image, max_dimension: int) -> Image.
     return gambar.resize((new_width, new_height), Image.LANCZOS)
 
 
+def _deskew_image(img_gray, cv2, np):
+    """
+    Koreksi dokumen yang miring (skewed) secara otomatis.
+    Mendeteksi sudut kemiringan dari konten teks dan merotasi untuk meluruskan.
+    """
+    try:
+        # Threshold untuk deteksi konten
+        thresh = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+        
+        # Cari koordinat non-zero pixels (teks)
+        coords = np.column_stack(np.where(thresh > 0))
+        
+        if len(coords) < 100:  # Terlalu sedikit konten, skip deskew
+            return img_gray
+        
+        # Hitung angle dari minimum area rectangle
+        angle = cv2.minAreaRect(coords)[-1]
+        
+        # Koreksi angle
+        if angle < -45:
+            angle = 90 + angle
+        elif angle > 45:
+            angle = angle - 90
+        
+        # Skip jika sudah hampir lurus (< 0.5 derajat)
+        if abs(angle) < 0.5:
+            return img_gray
+        
+        # Rotasi gambar
+        (h, w) = img_gray.shape[:2]
+        center = (w // 2, h // 2)
+        M = cv2.getRotationMatrix2D(center, angle, 1.0)
+        
+        # Hitung ukuran baru untuk menampung gambar yang dirotasi
+        cos = np.abs(M[0, 0])
+        sin = np.abs(M[0, 1])
+        new_w = int((h * sin) + (w * cos))
+        new_h = int((h * cos) + (w * sin))
+        M[0, 2] += (new_w / 2) - center[0]
+        M[1, 2] += (new_h / 2) - center[1]
+        
+        rotated = cv2.warpAffine(img_gray, M, (new_w, new_h), 
+                                  flags=cv2.INTER_CUBIC, 
+                                  borderMode=cv2.BORDER_REPLICATE)
+        print(f"📐 Deskew: koreksi {angle:.1f}°")
+        return rotated
+        
+    except Exception as e:
+        print(f"⚠️ Deskew error: {e}, skip deskew")
+        return img_gray
+
+
+def _remove_yellow_background(img_bgr, cv2, np):
+    """
+    Hilangkan warna kuning/coklat dari kertas tua.
+    Konversi ke LAB color space dan enhance channel L (luminance).
+    """
+    try:
+        # Convert ke LAB color space
+        lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        # Apply CLAHE ke L channel saja (luminance)
+        # Ini menghilangkan warna kuning sambil mempertahankan kontras teks
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        enhanced_l = clahe.apply(l)
+        
+        # Merge kembali dengan a,b channel yang di-neutralize
+        # a dan b mendekati 128 = warna netral (tidak kuning/biru)
+        neutral_a = np.full_like(a, 128)
+        neutral_b = np.full_like(b, 128)
+        
+        lab_neutral = cv2.merge([enhanced_l, neutral_a, neutral_b])
+        result = cv2.cvtColor(lab_neutral, cv2.COLOR_LAB2BGR)
+        
+        return result
+        
+    except Exception as e:
+        print(f"⚠️ Background removal error: {e}, skip")
+        return img_bgr
+
+
+def _sharpen_text(img_gray, cv2, np):
+    """
+    Pertajam huruf yang pudar dengan unsharp masking.
+    Lebih halus dari kernel sharpening biasa.
+    """
+    try:
+        # Gaussian blur untuk unsharp mask
+        blurred = cv2.GaussianBlur(img_gray, (0, 0), 3)
+        
+        # Unsharp masking: original + (original - blurred) * amount
+        # amount = 2.0 lebih kuat untuk dokumen mesin ketik yang pudar
+        sharpened = cv2.addWeighted(img_gray, 2.0, blurred, -1.0, 0)
+        
+        return sharpened
+        
+    except Exception as e:
+        print(f"⚠️ Sharpen error: {e}, skip")
+        return img_gray
+
+
 def preprocess_gambar(gambar: Image.Image, enhance: bool = True) -> Image.Image:
     """
-    Preprocessing gambar untuk dokumen jadul/pudar menggunakan OpenCV.
+    Preprocessing SEDERHANA untuk dokumen jadul/pudar.
     
-    Pipeline:
+    Pendekatan minimal yang TERBUKTI BEKERJA:
     1. Convert ke grayscale
-    2. Denoise - hilangkan noise/bintik
-    3. CLAHE - adaptive contrast enhancement
-    4. Adaptive threshold - convert ke hitam putih dengan threshold lokal
-    5. Morphological close - sambung huruf yang putus
-    6. Morphological open - hilangkan noise kecil
+    2. CLAHE saja - adaptive contrast tanpa bikin gambar rusak
     
-    Ini sangat efektif untuk dokumen scan yang pudar/buram.
+    Output: Grayscale yang di-enhance - PaddleOCR lebih akurat dengan grayscale.
     """
     if not enhance:
         return gambar
@@ -65,41 +163,18 @@ def preprocess_gambar(gambar: Image.Image, enhance: bool = True) -> Image.Image:
         img_array = np.array(gambar.convert('RGB'))
         img_cv = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
         
-        # Step 1: Convert ke grayscale
+        # Convert ke grayscale
         gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
         
-        # Step 2: Denoise - hilangkan noise sambil preserve edge
-        # h=8 lebih rendah biar detail huruf tetap tajam
-        denoised = cv2.fastNlMeansDenoising(gray, None, h=5, templateWindowSize=7, searchWindowSize=21)
-        
-        # Step 3: CLAHE (Contrast Limited Adaptive Histogram Equalization)
-        # clipLimit=4.0 lebih tinggi untuk dokumen yang sangat pudar
-        clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8, 8))
-        enhanced = clahe.apply(denoised)
-        
-        # Step 4: Adaptive thresholding - threshold berbeda per area gambar
-        # blockSize=25 optimal - tidak terlalu besar tidak terlalu kecil
-        # C=10 cukup untuk pisahkan teks dari background
-        binary = cv2.adaptiveThreshold(
-            enhanced,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            blockSize=31,  # sweet spot untuk dokumen scan
-            C=10  # cukup untuk pisahkan teks tanpa terlalu banyak noise
-        )
-        
-        # Step 5: Morphological closing - sambungkan huruf yang putus-putus
-        # Kernel 2x2 untuk menyambung bagian huruf yang terputus
-        kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-        closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_close)
-        
-        # Step 6: Dilation ringan - tebalkan huruf sedikit biar lebih jelas
-        kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
-        dilated = cv2.dilate(closed, kernel_dilate, iterations=1)
+        # HANYA CLAHE - ini cukup untuk tingkatkan kontras tanpa merusak gambar
+        # clipLimit=3.0 adalah sweet spot - tidak terlalu tinggi, tidak terlalu rendah
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(gray)
         
         # Convert balik ke PIL RGB
-        result = Image.fromarray(dilated).convert('RGB')
+        result = Image.fromarray(enhanced).convert('RGB')
+        
+        print("✅ Preprocessing selesai: CLAHE only")
         return result
         
     except ImportError:
@@ -210,7 +285,7 @@ class TesseractEngine:
         
         return "tesseract"
     
-    def baca_gambar(self, gambar: Image.Image) -> str:
+    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed") -> str:
         """Ekstrak teks dari gambar pake tesseract"""
         import subprocess
         import tempfile
@@ -223,9 +298,25 @@ class TesseractEngine:
             path_temp = tmp.name
             gambar.save(path_temp, format="PNG")
         
+        # Mapping bahasa ke tesseract language code
+        # Untuk dokumen Indonesia lama, pakai kombinasi ind+eng
+        lang_map = {
+            "id": "ind",
+            "en": "eng",
+            "mixed": "ind+eng",  # Kombinasi untuk dokumen Indonesia dengan kata asing
+        }
+        lang_code = lang_map.get(bahasa, "ind+eng")
+        
         try:
             hasil = subprocess.run(
-                [self.tesseract_cmd, path_temp, "stdout", "-l", "eng", "--oem", "3", "--psm", "6"],
+                [
+                    self.tesseract_cmd, 
+                    path_temp, 
+                    "stdout", 
+                    "-l", lang_code,
+                    "--oem", "3",  # LSTM OCR Engine
+                    "--psm", "6",  # Uniform block of text
+                ],
                 capture_output=True,
                 text=True,
                 timeout=120
@@ -342,17 +433,17 @@ class OCRService:
 
     def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed", engine: str = None, enhance: bool = False) -> str:
         """Baca text dari gambar dengan engine yang dipilih"""
-        # Force Tesseract saat enhance aktif untuk mencegah crash PaddleOCR
-        if enhance and settings.FORCE_TESSERACT_FOR_ENHANCE and self._tesseract_engine:
-            engine = "tesseract"
-            print(f"🔄 Auto-switch ke Tesseract karena enhance=true")
-        
         # Preprocessing untuk dokumen jadul/pudar
         if enhance:
             gambar = preprocess_gambar(gambar, enhance=True)
         
         ocr_engine = self._get_engine(engine)
-        return ocr_engine.baca_gambar(gambar)
+        
+        # Tesseract mendukung parameter bahasa
+        if isinstance(ocr_engine, TesseractEngine):
+            return ocr_engine.baca_gambar(gambar, bahasa)
+        else:
+            return ocr_engine.baca_gambar(gambar)
 
     def _convert_pdf_ke_gambar(self, data_file: bytes) -> list:
         """Convert PDF jadi list gambar dengan DPI dari config"""

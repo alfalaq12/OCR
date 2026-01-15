@@ -497,6 +497,13 @@
                 </label>
             </div>
 
+            <div style="margin-top: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="useDictionary" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-size: 14px;">Koreksi dengan Kamus Indonesia</span>
+                </label>
+            </div>
+
             <button class="btn btn-primary" id="processBtn" disabled>
                 Proses Dokumen
             </button>
@@ -634,6 +641,7 @@
             formData.append('engine', document.getElementById('engine').value);
             formData.append('enhance', document.getElementById('enhance').checked);
             formData.append('normalize_spelling', document.getElementById('normalizeSpelling').checked);
+            formData.append('use_dictionary', document.getElementById('useDictionary').checked);
 
             try {
                 const res = await fetch('/api/ocr/extract', { method: 'POST', body: formData });

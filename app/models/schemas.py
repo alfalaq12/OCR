@@ -12,7 +12,8 @@ class OCRResponse(BaseModel):
     success: bool
     text: str
     normalized_text: Optional[str] = None  # Teks dengan ejaan modern (jika normalize_spelling=true)
-    spelling_changes: Optional[int] = None  # Jumlah kata yang dikonversi
+    spelling_changes: Optional[int] = None  # Jumlah kata yang dikonversi ejaan
+    dictionary_corrections: Optional[int] = None  # Jumlah kata yang dikoreksi kamus
     pages: int
     language: str
     processing_time_ms: int
