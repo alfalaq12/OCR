@@ -13,8 +13,9 @@ services:
       - ADMIN_MASTER_KEY=admin-master-secret-key-change-this
       - RATE_LIMIT_ENABLED=true
       - RATE_LIMIT_PER_MINUTE=30
+      - DATA_DIR=/app/data
     volumes:
-      - ./ocr_history.db:/app/ocr_history.db
+      - ocr_data:/app/data
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
@@ -35,5 +36,5 @@ services:
   #     - minio_data:/data
   #   restart: unless-stopped
 
-  # volumes:
-  #   minio_data:
+volumes:
+  ocr_data:

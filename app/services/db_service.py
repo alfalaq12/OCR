@@ -9,12 +9,19 @@ from typing import Optional, List
 from contextlib import contextmanager
 import secrets
 import hashlib
+import os
 
 
 class DatabaseService:
     """Handle semua operasi database - history OCR dan API keys"""
 
-    def __init__(self, db_path: str = "ocr_history.db"):
+    def __init__(self, db_path: str = None):
+        # Default: gunakan data directory untuk Docker, atau local untuk development
+        if db_path is None:
+            data_dir = os.environ.get("DATA_DIR", "data")
+            # Buat direktori jika belum ada
+            os.makedirs(data_dir, exist_ok=True)
+            db_path = os.path.join(data_dir, "ocr_history.db")
         self.db_path = db_path
         self._setup_tabel()
 
