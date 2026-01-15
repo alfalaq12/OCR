@@ -111,6 +111,18 @@ KAMUS_DOKUMEN = {
     # Dokumen Khusus Rumah Negara
     "penunjukan", "penghunian", "penggunaan", "pemeliharaan", "penyerahan",
     "hak", "kewajiban", "syarat", "ketentuan", "larangan", "sanksi",
+    
+    # Istilah Pemerintahan Lama (ejaan "dj" dan lainnya)
+    "djawatan", "djakarta", "djasa", "djuru", "adjudan", "ajudan",
+    "djalan", "djl", "djend", "djenderal", "djoeragan",
+    "wedana", "demang", "mantri", "djuru tulis", "djuru bayar",
+    "persewaan", "perowaan", "rumah dinas", "rumah negara",
+    "angka", "pnid", "kartu", "tjap", "stempel", "meterai",
+    "gouvernement", "resident", "regentschap", "afdeeling",
+    
+    # Dokumen Kolonial/Lama
+    "staatblad", "bijblad", "besluit", "resolutie", "ordonnantie",
+    "burgerlijke", "stand", "akta", "akte", "salinan", "turunan",
 }
 
 # Kata-kata dengan kapitalisasi khusus (akan dipertahankan uppercase)
@@ -118,7 +130,48 @@ KATA_UPPERCASE = {
     "departemen", "kementerian", "direktorat", "republik", "indonesia",
     "jakarta", "bandung", "surabaya", "jawa", "sumatra", "kalimantan",
     "sulawesi", "papua", "bali", "maluku", "presiden", "menteri",
+    "djakarta", "djawa", "nusa", "tenggara", "denpasar",
 }
+
+
+# ============================================================================
+# NAMA-NAMA INDONESIA
+# Nama umum yang sering muncul di dokumen lama
+# ============================================================================
+
+NAMA_INDONESIA = {
+    # Nama Laki-laki Umum
+    "sujono", "suparman", "hartono", "bambang", "joko", "budi", "agus",
+    "ahmad", "muhammad", "mohamad", "moh", "abdul", "ali", "hasan", "umar",
+    "udin", "didi", "dede", "asep", "ujang", "yanto", "sugeng", "sutrisno",
+    "supardi", "suradi", "sudirman", "sudarno", "sukardi", "suharto",
+    "sukarno", "slamet", "rosidi", "ridwan", "rahman", "pudjo", "parto",
+    "parman", "paijo", "ngadiman", "ngadino", "mulyono", "mulyo", "karno",
+    "kardi", "kamto", "darmo", "darmono", "cipto", "ciptono", "bejo",
+    "harjo", "harjono", "wongso", "kasno", "kasiman", "kasman",
+    
+    # Nama Perempuan Umum
+    "ngatirah", "kasminem", "sriati", "sriyati", "sri", "siti", "dewi",
+    "ratna", "yanti", "kartini", "aminah", "fatimah", "aisha", "aisyah",
+    "nurhaliza", "sumiati", "sumirah", "sumini", "suparni", "supami",
+    "tuminah", "tumini", "waginah", "waginem", "warsinah", "warsini",
+    "parmi", "parmini", "parminah", "sarmi", "sarmini", "sarminah",
+    "lastri", "lestari", "kasmirah", "kasmini", "kasminah", "wagiyem",
+    "wagirah", "sutinah", "sutini", "sutinem", "ngatini", "ngatinem",
+    "rubiyah", "rubiyem", "satinem", "satinah", "tumiyem", "marni",
+    
+    # Prefix/Title Nama
+    "ng", "raden", "rd", "mas", "mbak", "nyi", "ki", "haji", "hajjah",
+    "hadji", "hadjah", "tuan", "nyonya", "nona", "rr", "krt", "kra",
+    "roro", "gusti", "andi", "daeng", "oei", "tan", "liem", "kwee",
+    
+    # Nama Keluarga/Marga
+    "prawirodirjo", "prawiro", "mangku", "mangkunegara", "paku", "pakubuwono",
+    "hamengku", "hamengkubuwono", "sosro", "sosrodiningrat", "gondokusumo",
+}
+
+# Gabungkan nama ke kamus untuk fuzzy matching
+KAMUS_DOKUMEN.update(NAMA_INDONESIA)
 
 
 # ============================================================================
@@ -141,6 +194,7 @@ PHRASE_CORRECTIONS = {
     "gecung": "gedung",
     "negera": "negara",
     "nogara": "negara",
+    "nfg": "negara",
     
     # Alamat
     "jkrtn": "jakarta",
@@ -150,16 +204,40 @@ PHRASE_CORRECTIONS = {
     "krmet": "kramat",
     "kramet": "kramat",
     
+    # Format Tanggal Lama
+    "tgl": "tanggal",
+    "bln": "bulan",
+    "thn": "tahun",
+    "th": "tahun",
+    
+    # Bulan - ejaan lama & OCR errors
+    "djanuari": "januari",
+    "danuari": "januari",
+    "djanu": "januari",
+    "pebruari": "februari",
+    "peb": "februari",
+    "febr": "februari",
+    "mrt": "maret",
+    "aprl": "april",
+    "djuni": "juni",
+    "djuli": "juli",
+    "agustoes": "agustus",
+    "agsts": "agustus",
+    "nopember": "november",
+    "noombo": "november",
+    "nopmber": "november",
+    "novmber": "november",
+    "nov": "november",
+    "desemb": "desember",
+    "dec": "desember",
+    
     # Kata-kata umum yang sering error
     "ketarangan": "keterangan",
     "ketrangan": "keterangan",
     "keterangn": "keterangan",
     "berllaku": "berlaku",
     "berlku": "berlaku",
-    "tgl": "tanggal",
-    "noombo": "nopember",
-    "nopmber": "nopember",
-    "novmber": "november",
+    "bercgser": "bergesar",
     
     # Properti & Rumah
     "rmah": "rumah",
@@ -168,18 +246,23 @@ PHRASE_CORRECTIONS = {
     "tmpat": "tempat",
     "tempt": "tempat",
     "tompt": "tempat",
+    "tinga1": "tinggal",
+    "tingal": "tinggal",
     
     # Kata kerja
     "citinggal": "ditinggalkan",
     "ditinggal": "ditinggalkan",
     "ditempti": "ditempati",
     "ditempatl": "ditempati",
+    "monciri": "menghuni",
+    "menciri": "menghuni",
     
     # Jabatan
     "kpala": "kepala",
     "kepal": "kepala",
     "direkur": "direktur",
     "direktr": "direktur",
+    "gicn": "bagian",
     
     # Keuangan
     "gadji": "gaji",
@@ -194,6 +277,7 @@ PHRASE_CORRECTIONS = {
     "ank": "anak",
     "anaks": "anak",
     "tanaks": "anak",
+    "kakeks": "kakak",
     
     # Dokumen
     "halman": "halaman",
@@ -202,6 +286,13 @@ PHRASE_CORRECTIONS = {
     "nomr": "nomor",
     "srat": "surat",
     "surt": "surat",
+    "katp": "kartu",
+    "pnid": "penunjukan identitas",
+    
+    # OCR Errors Umum (dari sample user)
+    "mastoreoicig": "maryorejo",
+    "kotaoran": "kotamadya",
+    "persowaan": "persewaan",
 }
 
 
