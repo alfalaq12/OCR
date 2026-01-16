@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from app.routers import ocr, admin
+from app.routers import ocr, admin, learning
 from app.models.schemas import HealthResponse
 from app.middleware.auth import RateLimitMiddleware
 from app.config import settings
@@ -93,6 +93,10 @@ TAGS_METADATA = [
         "description": "Manajemen API Key dan monitoring penggunaan. Memerlukan akses administrator.",
     },
     {
+        "name": "Learning Dictionary",
+        "description": "Export/import learned words dan manajemen dictionary learning. Memerlukan akses administrator.",
+    },
+    {
         "name": "Health",
         "description": "Status dan health check untuk monitoring infrastructure.",
     },
@@ -160,6 +164,7 @@ if settings.RATE_LIMIT_ENABLED:
 # Register routers
 app.include_router(ocr.router)
 app.include_router(admin.router)
+app.include_router(learning.router)
 
 # Mount static files untuk UI
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -180,10 +185,18 @@ async def serve_ui():
 async def startup_event():
     """Initialize OCR engines saat startup."""
     from app.services.ocr_service import ocr_service
-    print("🚀 Initializing OCR engines...")
+    print("Initializing OCR engines...")
     ocr_service.init_engine()
     engines = ocr_service.get_available_engines()
-    print(f"✅ OCR ready! Available: {engines}, Default: {ocr_service.get_engine_name()}")
+    print(f"OCR ready! Available: {engines}, Default: {ocr_service.get_engine_name()}")
+    
+    # Load learned words dari database ke dictionary
+    try:
+        from app.services.dictionary_corrector import load_learned_words
+        count = load_learned_words()
+        print(f"Dictionary ready! Loaded {count} learned words from database")
+    except Exception as e:
+        print(f"Could not load learned words: {e}")
 
 
 @app.get("/", response_model=HealthResponse, tags=["Health"])

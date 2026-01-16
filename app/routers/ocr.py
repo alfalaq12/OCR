@@ -37,6 +37,45 @@ async def get_available_engines():
         }
     }
 
+
+@router.get("/learning/stats")
+async def get_learning_stats(api_key: str = Depends(verify_api_key)):
+    """
+    Lihat statistik auto-learn dictionary.
+    
+    Menampilkan jumlah kata yang di-track dan sudah di-approve.
+    """
+    from app.services.learning_service import learning_service
+    return learning_service.get_stats()
+
+
+@router.get("/learning/pending")
+async def get_pending_words(
+    limit: int = 50,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Lihat kata-kata yang belum di-approve (pending).
+    
+    Kata di sini sedang di-track dan akan auto-approve setelah mencapai threshold.
+    """
+    from app.services.learning_service import learning_service
+    return {
+        "pending_words": learning_service.get_pending_words(limit),
+        "threshold": 5
+    }
+
+
+@router.get("/learning/approved")
+async def get_approved_words(api_key: str = Depends(verify_api_key)):
+    """
+    Lihat kata-kata yang sudah di-approve dan masuk kamus.
+    """
+    from app.services.learning_service import learning_service
+    return {
+        "approved_words": learning_service.get_approved_words()
+    }
+
 @router.post("/extract", response_model=OCRResponse)
 async def extract_text(
     file: UploadFile = File(..., description="File gambar atau PDF yang akan diproses"),
@@ -149,7 +188,7 @@ async def extract_text(
 
     try:
         # proses OCR dengan engine yang dipilih
-        text, halaman, waktu_proses = ocr_service.proses_file(
+        text, halaman, waktu_proses, confidence_scores = ocr_service.proses_file(
             isi_file,
             file.filename,
             language,
@@ -177,6 +216,43 @@ async def extract_text(
             else:
                 normalized_text = corrected_text
 
+        # Hitung quality score
+        from app.services.scoring_service import calculate_quality_score
+        from app.models.schemas import QualityScore
+        
+        quality_result = calculate_quality_score(
+            text=text_to_process if text_to_process else text,
+            confidence_scores=confidence_scores,
+            dictionary_corrections=dictionary_corrections or 0
+        )
+        
+        quality_score = QualityScore(
+            overall=quality_result.overall,
+            label=quality_result.label,
+            confidence=quality_result.confidence,
+            dictionary_match=quality_result.dictionary_match,
+            correction_rate=quality_result.correction_rate,
+            total_words=quality_result.total_words,
+            matched_words=quality_result.matched_words,
+            corrected_words=quality_result.corrected_words
+        )
+
+        # Auto-learn: track kata yang tidak dikenali
+        try:
+            from app.services.dictionary_corrector import get_unknown_words
+            from app.services.learning_service import learning_service
+            
+            unknown_words = get_unknown_words(text_to_process if text_to_process else text)
+            if unknown_words:
+                newly_approved = learning_service.track_unknown_words(unknown_words)
+                if newly_approved > 0:
+                    # Reload learned words ke dictionary
+                    from app.services.dictionary_corrector import load_learned_words
+                    load_learned_words()
+        except Exception as e:
+            # Jangan gagalkan OCR kalau learning error
+            print(f"[LEARNING] Error tracking words: {e}")
+
         # catat ke history
         db_service.catat_request(
             filename=file.filename,
@@ -195,6 +271,7 @@ async def extract_text(
             normalized_text=normalized_text,
             spelling_changes=spelling_changes,
             dictionary_corrections=dictionary_corrections,
+            quality_score=quality_score,
             pages=halaman,
             language=language,
             processing_time_ms=waktu_proses

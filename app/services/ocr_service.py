@@ -7,7 +7,7 @@ Sudah dioptimasi untuk performa lebih cepat.
 import io
 import time
 import os
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -269,8 +269,8 @@ class PaddleOCREngine:
         )
         self._cls_enabled = settings.USE_ANGLE_CLS
     
-    def baca_gambar(self, gambar: Image.Image) -> str:
-        """Ekstrak teks dari gambar"""
+    def baca_gambar(self, gambar: Image.Image) -> Tuple[str, List[float]]:
+        """Ekstrak teks dari gambar, return (text, confidence_scores)"""
         import numpy as np
         
         # resize dulu kalau kegedean
@@ -282,14 +282,18 @@ class PaddleOCREngine:
         # jalanin OCR - cls sesuai config
         hasil = self.ocr.ocr(img_array, cls=self._cls_enabled)
         
-        # ambil teks dari hasil
+        # ambil teks dan confidence dari hasil
         texts = []
+        confidences = []
         if hasil and hasil[0]:
             for line in hasil[0]:
                 if line and len(line) >= 2:
                     texts.append(line[1][0])
+                    # Confidence ada di line[1][1], biasanya 0-1
+                    conf = line[1][1] if len(line[1]) > 1 else 0.8
+                    confidences.append(float(conf))
         
-        return "\n".join(texts)
+        return "\n".join(texts), confidences
 
 
 class TesseractEngine:
@@ -323,8 +327,8 @@ class TesseractEngine:
         
         return "tesseract"
     
-    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed") -> str:
-        """Ekstrak teks dari gambar pake tesseract"""
+    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed") -> Tuple[str, List[float]]:
+        """Ekstrak teks dari gambar pake tesseract, return (text, confidence_scores)"""
         import subprocess
         import tempfile
         
@@ -346,6 +350,7 @@ class TesseractEngine:
         lang_code = lang_map.get(bahasa, "ind+eng")
         
         try:
+            # Get text
             hasil = subprocess.run(
                 [
                     self.tesseract_cmd, 
@@ -360,8 +365,44 @@ class TesseractEngine:
                 timeout=120
             )
             
-            output = hasil.stdout
-            return output.strip() if output else ""
+            output = hasil.stdout.strip() if hasil.stdout else ""
+            
+            # Get confidence with TSV output
+            confidences = []
+            try:
+                tsv_result = subprocess.run(
+                    [
+                        self.tesseract_cmd, 
+                        path_temp, 
+                        "stdout", 
+                        "-l", lang_code,
+                        "--oem", "3",
+                        "--psm", "6",
+                        "tsv",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                if tsv_result.stdout:
+                    lines = tsv_result.stdout.strip().split('\n')
+                    for line in lines[1:]:  # Skip header
+                        parts = line.split('\t')
+                        if len(parts) >= 11 and parts[10]:  # conf column
+                            try:
+                                conf = float(parts[10])
+                                if conf > 0:  # Skip -1 (no confidence)
+                                    confidences.append(conf / 100.0)  # Normalize to 0-1
+                            except ValueError:
+                                pass
+            except Exception:
+                pass  # Fallback: no confidence data
+            
+            # Default confidence jika tidak ada data
+            if not confidences:
+                confidences = [0.75]  # Default 75%
+            
+            return output, confidences
         
         except Exception as e:
             raise Exception(f"Tesseract error: {str(e)}")
@@ -469,8 +510,8 @@ class OCRService:
         else:
             raise Exception(f"Engine tidak dikenal: {engine_name}. Pilihan: tesseract, paddle")
 
-    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed", engine: str = None, enhance: bool = False) -> str:
-        """Baca text dari gambar dengan engine yang dipilih"""
+    def baca_gambar(self, gambar: Image.Image, bahasa: str = "mixed", engine: str = None, enhance: bool = False) -> Tuple[str, List[float]]:
+        """Baca text dari gambar dengan engine yang dipilih. Return (text, confidence_scores)"""
         # Preprocessing untuk dokumen jadul/pudar
         if enhance:
             gambar = preprocess_gambar(gambar, enhance=True)
@@ -497,11 +538,11 @@ class OCRService:
                 )
             raise Exception(f"Gagal convert PDF: {str(e)}")
 
-    def _proses_satu_halaman(self, args: Tuple[int, Image.Image, str, str, bool]) -> Tuple[int, str]:
+    def _proses_satu_halaman(self, args: Tuple[int, Image.Image, str, str, bool]) -> Tuple[int, str, List[float]]:
         """Helper buat parallel processing - proses satu halaman PDF"""
         idx, gambar, bahasa, engine, enhance = args
-        text = self.baca_gambar(gambar, bahasa, engine, enhance)
-        return idx, text
+        text, confidences = self.baca_gambar(gambar, bahasa, engine, enhance)
+        return idx, text, confidences
 
     def proses_file(
         self,
@@ -510,7 +551,7 @@ class OCRService:
         bahasa: str = "mixed",
         engine: str = None,
         enhance: bool = False
-    ) -> Tuple[str, int, int]:
+    ) -> Tuple[str, int, int, List[float]]:
         """
         Proses file (gambar atau PDF).
         
@@ -521,9 +562,10 @@ class OCRService:
             engine: pilihan engine (tesseract/paddle/auto)
             enhance: aktifkan preprocessing untuk dokumen jadul/pudar
         
-        Return: (text, jumlah_halaman, waktu_ms)
+        Return: (text, jumlah_halaman, waktu_ms, confidence_scores)
         """
         waktu_mulai = time.time()
+        all_confidences = []
 
         is_pdf = nama_file.lower().endswith('.pdf')
 
@@ -534,6 +576,7 @@ class OCRService:
             # parallel processing kalo enabled dan ada lebih dari 1 halaman
             if settings.PARALLEL_PDF_PROCESSING and jumlah_halaman > 1:
                 hasil_per_halaman = {}
+                confidences_per_halaman = {}
                 
                 max_workers = min(settings.PDF_WORKERS, jumlah_halaman)
                 
@@ -544,35 +587,39 @@ class OCRService:
                     }
                     
                     for future in as_completed(futures):
-                        idx, text = future.result()
+                        idx, text, confidences = future.result()
                         hasil_per_halaman[idx] = text
+                        confidences_per_halaman[idx] = confidences
                 
                 semua_text = []
                 for idx in range(jumlah_halaman):
                     text = hasil_per_halaman.get(idx, "")
                     if text:
                         semua_text.append(f"--- Halaman {idx + 1} ---\n{text}")
+                    all_confidences.extend(confidences_per_halaman.get(idx, []))
                 
                 text_hasil = "\n\n".join(semua_text)
             else:
                 semua_text = []
                 for idx, gambar in enumerate(list_gambar):
-                    text_halaman = self.baca_gambar(gambar, bahasa, engine, enhance)
+                    text_halaman, confidences = self.baca_gambar(gambar, bahasa, engine, enhance)
                     if text_halaman:
                         semua_text.append(f"--- Halaman {idx + 1} ---\n{text_halaman}")
+                    all_confidences.extend(confidences)
                 text_hasil = "\n\n".join(semua_text)
         else:
             gambar = Image.open(io.BytesIO(data_file))
-            text_hasil = self.baca_gambar(gambar, bahasa, engine, enhance)
+            text_hasil, all_confidences = self.baca_gambar(gambar, bahasa, engine, enhance)
             jumlah_halaman = 1
 
         waktu_proses = int((time.time() - waktu_mulai) * 1000)
 
-        return text_hasil, jumlah_halaman, waktu_proses
+        return text_hasil, jumlah_halaman, waktu_proses, all_confidences
 
     # alias buat backward compatibility
     def extract_text_from_bytes(self, file_bytes, filename, language="mixed", engine=None):
-        return self.proses_file(file_bytes, filename, language, engine)
+        text, pages, time_ms, _ = self.proses_file(file_bytes, filename, language, engine)
+        return text, pages, time_ms
 
 
 # singleton instance

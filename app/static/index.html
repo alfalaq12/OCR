@@ -618,6 +618,164 @@
                 <button class="btn-copy" id="copyBtn">Salin Teks</button>
             </div>
 
+            <!-- Quality Score Card -->
+            <div class="quality-score-card" id="qualityScoreCard" style="display: none;">
+                <div class="quality-header">
+                    <div class="quality-main">
+                        <span class="quality-icon" id="qualityIcon">📊</span>
+                        <span class="quality-label">Kualitas Hasil:</span>
+                        <span class="quality-value" id="qualityValue">0</span>
+                        <span class="quality-max">/100</span>
+                        <span class="quality-badge" id="qualityBadge">Good</span>
+                    </div>
+                </div>
+                <div class="quality-breakdown">
+                    <div class="breakdown-item">
+                        <span class="breakdown-label">Confidence Engine</span>
+                        <div class="breakdown-bar">
+                            <div class="breakdown-fill" id="confidenceBar" style="width: 0%"></div>
+                        </div>
+                        <span class="breakdown-value" id="confidenceValue">0%</span>
+                    </div>
+                    <div class="breakdown-item">
+                        <span class="breakdown-label">Kata Dikenali</span>
+                        <div class="breakdown-bar">
+                            <div class="breakdown-fill" id="matchBar" style="width: 0%"></div>
+                        </div>
+                        <span class="breakdown-value" id="matchValue">0%</span>
+                    </div>
+                    <div class="breakdown-item">
+                        <span class="breakdown-label">Koreksi Diperlukan</span>
+                        <div class="breakdown-bar">
+                            <div class="breakdown-fill correction" id="correctionBar" style="width: 0%"></div>
+                        </div>
+                        <span class="breakdown-value" id="correctionValue">0 kata</span>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .quality-score-card {
+                    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                    border: 1px solid #bae6fd;
+                    border-radius: 12px;
+                    padding: 16px 20px;
+                    margin-bottom: 20px;
+                }
+
+                .quality-header {
+                    margin-bottom: 12px;
+                }
+
+                .quality-main {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+
+                .quality-icon {
+                    font-size: 20px;
+                }
+
+                .quality-label {
+                    font-weight: 500;
+                    color: var(--text);
+                }
+
+                .quality-value {
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    color: var(--primary);
+                }
+
+                .quality-max {
+                    font-size: 1rem;
+                    color: var(--text-muted);
+                }
+
+                .quality-badge {
+                    padding: 4px 12px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    margin-left: 8px;
+                }
+
+                .quality-badge.excellent {
+                    background: #dcfce7;
+                    color: #166534;
+                }
+
+                .quality-badge.good {
+                    background: #dbeafe;
+                    color: #1e40af;
+                }
+
+                .quality-badge.fair {
+                    background: #fef3c7;
+                    color: #92400e;
+                }
+
+                .quality-badge.poor {
+                    background: #fee2e2;
+                    color: #991b1b;
+                }
+
+                .quality-breakdown {
+                    display: grid;
+                    gap: 10px;
+                }
+
+                .breakdown-item {
+                    display: grid;
+                    grid-template-columns: 140px 1fr 60px;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .breakdown-label {
+                    font-size: 13px;
+                    color: var(--text-muted);
+                }
+
+                .breakdown-bar {
+                    height: 8px;
+                    background: #e2e8f0;
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+
+                .breakdown-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+                    border-radius: 4px;
+                    transition: width 0.5s ease;
+                }
+
+                .breakdown-fill.correction {
+                    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+                }
+
+                .breakdown-value {
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: var(--text);
+                    text-align: right;
+                }
+
+                @media (max-width: 640px) {
+                    .breakdown-item {
+                        grid-template-columns: 1fr;
+                        gap: 4px;
+                    }
+
+                    .breakdown-value {
+                        text-align: left;
+                    }
+                }
+            </style>
+
             <!-- Tabs untuk Original/Normalized -->
             <div class="text-tabs" id="textTabs" style="display: none; margin-bottom: 16px;">
                 <button class="tab-btn active" id="tabOriginal" onclick="showTab('original')">Teks Asli</button>
@@ -755,6 +913,37 @@
                     }
                     document.getElementById('timeCount').textContent = ((data.processing_time_ms || 0) / 1000).toFixed(1);
                     statsBox.style.display = 'flex';
+
+                    // Display Quality Score
+                    const qualityScoreCard = document.getElementById('qualityScoreCard');
+                    if (data.quality_score) {
+                        const qs = data.quality_score;
+
+                        // Update values
+                        document.getElementById('qualityValue').textContent = qs.overall;
+                        document.getElementById('qualityBadge').textContent = qs.label;
+                        document.getElementById('qualityBadge').className = 'quality-badge ' + qs.label.toLowerCase();
+
+                        // Update icon based on label
+                        const iconMap = { 'Excellent': '⭐', 'Good': '✅', 'Fair': '⚠️', 'Poor': '❌' };
+                        document.getElementById('qualityIcon').textContent = iconMap[qs.label] || '📊';
+
+                        // Update breakdown bars
+                        document.getElementById('confidenceBar').style.width = qs.confidence + '%';
+                        document.getElementById('confidenceValue').textContent = qs.confidence.toFixed(1) + '%';
+
+                        document.getElementById('matchBar').style.width = qs.dictionary_match + '%';
+                        document.getElementById('matchValue').textContent = qs.dictionary_match.toFixed(1) + '%';
+
+                        // For correction, show count instead of percentage
+                        const correctionPercent = qs.total_words > 0 ? (qs.corrected_words / qs.total_words * 100) : 0;
+                        document.getElementById('correctionBar').style.width = Math.min(correctionPercent * 5, 100) + '%'; // Scale up for visibility
+                        document.getElementById('correctionValue').textContent = qs.corrected_words + ' kata';
+
+                        qualityScoreCard.style.display = 'block';
+                    } else {
+                        qualityScoreCard.style.display = 'none';
+                    }
 
                     // Show file preview
                     const previewImage = document.getElementById('previewImage');

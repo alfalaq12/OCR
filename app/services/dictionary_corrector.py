@@ -174,6 +174,45 @@ NAMA_INDONESIA = {
 KAMUS_DOKUMEN.update(NAMA_INDONESIA)
 
 
+def load_learned_words():
+    """
+    Load kata-kata yang sudah di-approve dari database.
+    Merge ke KAMUS_DOKUMEN untuk recognition.
+    """
+    try:
+        from app.services.learning_service import learning_service
+        learned = learning_service.get_learned_words()
+        if learned:
+            KAMUS_DOKUMEN.update(learned)
+            print(f"[DICTIONARY] Loaded {len(learned)} learned words from database")
+        return len(learned)
+    except Exception as e:
+        # Jangan error kalau database belum ada
+        print(f"[DICTIONARY] Could not load learned words: {e}")
+        return 0
+
+
+def get_unknown_words(text: str) -> list:
+    """
+    Ambil kata-kata yang tidak dikenali dari teks.
+    Untuk di-track ke learning service.
+    """
+    if not text:
+        return []
+    
+    import re
+    words = re.findall(r'[a-zA-Z]{3,}', text.lower())
+    unknown = []
+    
+    for word in words:
+        word_lower = word.lower()
+        # Cek apakah ada di kamus
+        if word_lower not in KAMUS_DOKUMEN:
+            unknown.append(word_lower)
+    
+    return list(set(unknown))  # Unique words only
+
+
 # ============================================================================
 # PHRASE CORRECTIONS
 # Koreksi frasa yang sering salah dibaca OCR

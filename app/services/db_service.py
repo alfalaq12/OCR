@@ -61,6 +61,19 @@ class DatabaseService:
                     revoked_at TIMESTAMP
                 )
             """)
+            
+            # tabel buat auto-learn dictionary
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS learned_words (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    word TEXT UNIQUE NOT NULL,
+                    frequency INTEGER DEFAULT 1,
+                    is_approved INTEGER DEFAULT 0,
+                    first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    approved_at TIMESTAMP
+                )
+            """)
             conn.commit()
 
     @contextmanager

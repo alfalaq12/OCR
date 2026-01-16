@@ -7,6 +7,18 @@ from typing import Optional
 from datetime import datetime
 
 
+class QualityScore(BaseModel):
+    """Skor kualitas hasil OCR"""
+    overall: int              # 0-100
+    label: str                # Excellent/Good/Fair/Poor
+    confidence: float         # 0-100
+    dictionary_match: float   # 0-100
+    correction_rate: float    # 0-100 (higher = fewer corrections)
+    total_words: int
+    matched_words: int
+    corrected_words: int
+
+
 class OCRResponse(BaseModel):
     """Format response hasil OCR"""
     success: bool
@@ -14,6 +26,7 @@ class OCRResponse(BaseModel):
     normalized_text: Optional[str] = None  # Teks dengan ejaan modern (jika normalize_spelling=true)
     spelling_changes: Optional[int] = None  # Jumlah kata yang dikonversi ejaan
     dictionary_corrections: Optional[int] = None  # Jumlah kata yang dikoreksi kamus
+    quality_score: Optional[QualityScore] = None  # Skor kualitas hasil OCR
     pages: int
     language: str
     processing_time_ms: int
