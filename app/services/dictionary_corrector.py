@@ -177,6 +177,9 @@ NAMA_INDONESIA = {
     "lastri", "lestari", "kasmirah", "kasmini", "kasminah", "wagiyem",
     "wagirah", "sutinah", "sutini", "sutinem", "ngatini", "ngatinem",
     "rubiyah", "rubiyem", "satinem", "satinah", "tumiyem", "marni",
+    "mainah", "sukati", "suwarti", "riswati", "ngatirah", "kasminem", # New names
+    "sujono", "kasman", "sriati", "suharto", "sukati",
+    "marhadi", "suparto", "sumarto",
     
     # Prefix/Title Nama
     "ng", "raden", "rd", "mas", "mbak", "nyi", "ki", "haji", "hajjah",
@@ -505,7 +508,14 @@ PHRASE_CORRECTIONS = {
     "marrowj0j0": "martowijojo",
     "martowijojo": "martowijojo",
     "simnh": "simuh",
+    "simnh": "simuh",
     "sumatra": "saudara",  # context: "Sdr" dibaca salah
+    "maineh": "mainah",
+    "sukatl": "sukati",
+    "suwartt": "suwarti",
+    "kasm.nem": "kasminem",
+    "kasmnem": "kasminem",
+    "sukatil": "sukati",
     
     # Lokasi & Alamat
     "kotaoran": "kotamadya",
@@ -1282,6 +1292,14 @@ def normalize_currency_and_numbers(text: str) -> str:
         (r'\b(ke\s*lima|kelima)\s+(ribu|ratus)', r'lima \2'),
         # soratus / s0ratus -> seratus
         (r'\bs[o0a]ratus\b', r'seratus'),
+        
+        # 7. Fix Specific Names (Regex for symbols/typos)
+        # Kasm.nem / Kasm nem -> Kasminem
+        (r'\b[Kk]asm\s*[.,]\s*nem\b', r'Kasminem'),
+        # Sukatil / Sukat1 -> Sukati
+        (r'\b[Ss]ukati[l1I]\b', r'Sukati'),
+        # Maineh -> Mainah
+        (r'\b[Mm]aineh\b', r'Mainah'),
     ]
     
     for pattern, replacement in rp_patterns:
