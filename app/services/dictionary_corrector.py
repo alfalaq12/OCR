@@ -112,6 +112,7 @@ KAMUS_DOKUMEN = {
     "penunjukan", "penghunian", "penggunaan", "pemeliharaan", "penyerahan",
     "hak", "kewajiban", "syarat", "ketentuan", "larangan", "sanksi",
     "kontrak-sewa-beli", "kontrak", "sewa-beli", "tjara-sewa-beli", "cara-sewa-beli",
+    "tata", "usaha", "ruang", "kota", # Added tata
     
     # Istilah Pemerintahan Lama (ejaan "dj" dan lainnya)
     "djawatan", "djakarta", "djasa", "djuru", "adjudan", "ajudan",
