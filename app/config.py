@@ -34,6 +34,9 @@ class Settings:
     
     # Force Tesseract saat enhance aktif - sekarang disabled karena pakai OpenCV preprocessing
     FORCE_TESSERACT_FOR_ENHANCE: bool = os.getenv("FORCE_TESSERACT_FOR_ENHANCE", "false").lower() == "true"
+    
+    # Default enhance - untuk dokumen jadul/pudar, aktifkan preprocessing otomatis
+    DEFAULT_ENHANCE: bool = os.getenv("DEFAULT_ENHANCE", "false").lower() == "true"
 
     # tipe file yang diperbolehkan
     ALLOWED_EXTENSIONS: set = {"png", "jpg", "jpeg", "gif", "bmp", "tiff", "pdf"}

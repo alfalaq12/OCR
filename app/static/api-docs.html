@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - OCR Service</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #0d1117;
+            --bg-sidebar: #161b22;
+            --bg-card: #21262d;
+            --bg-input: #0d1117;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --text-dim: #484f58;
+            --border: #30363d;
+            --method-get: #3fb950;
+            --method-post: #58a6ff;
+            --method-put: #d29922;
+            --method-delete: #f85149;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            line-height: 1.5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: 100vh;
+        }
+
+        .sidebar {
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .logo-text {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .version-badge {
+            background: var(--bg-card);
+            color: var(--text-muted);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 8px 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border-left: 2px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-card);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+            border-left-color: var(--primary);
+        }
+
+        .method-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            min-width: 42px;
+            text-align: center;
+        }
+
+        .method-badge.get {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--method-get);
+        }
+
+        .method-badge.post {
+            background: rgba(88, 166, 255, 0.15);
+            color: var(--method-post);
+        }
+
+        .method-badge.delete {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--method-delete);
+        }
+
+        .nav-item-path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .sidebar-footer a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+
+        .sidebar-footer a:hover {
+            background: var(--bg-card);
+            color: var(--text);
+        }
+
+        .main-content {
+            overflow-y: auto;
+            background: var(--bg-dark);
+        }
+
+        .content-header {
+            padding: 24px 40px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-sidebar);
+        }
+
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .content-title {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .content-title h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        .content-body {
+            padding: 32px 40px;
+            max-width: 1000px;
+        }
+
+        .endpoint-card {
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 24px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .endpoint-method {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        .endpoint-method.get {
+            background: var(--method-get);
+            color: #000;
+        }
+
+        .endpoint-method.post {
+            background: var(--method-post);
+            color: #000;
+        }
+
+        .endpoint-method.delete {
+            background: var(--method-delete);
+            color: #fff;
+        }
+
+        .endpoint-url {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .endpoint-body {
+            padding: 24px;
+        }
+
+        .endpoint-desc {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .param-section {
+            margin-bottom: 24px;
+        }
+
+        .param-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .param-table th,
+        .param-table td {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .param-table th {
+            color: var(--text-muted);
+            font-weight: 500;
+            background: var(--bg-card);
+        }
+
+        .param-name {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--primary);
+        }
+
+        .param-type {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .param-required {
+            color: var(--danger);
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .code-section {
+            margin-top: 24px;
+        }
+
+        .code-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: -1px;
+        }
+
+        .code-tab {
+            padding: 10px 16px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-bottom: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .code-tab.active {
+            background: var(--bg-card);
+            border-color: var(--border);
+            color: var(--text);
+        }
+
+        .code-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0 8px 8px 8px;
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .code-lang {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .copy-btn {
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            background: var(--bg-card);
+            color: var(--text);
+        }
+
+        .code-content {
+            padding: 16px 20px;
+            overflow-x: auto;
+        }
+
+        .code-content code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre;
+        }
+
+        .code-content.hidden {
+            display: none;
+        }
+
+        .response-section {
+            margin-top: 24px;
+        }
+
+        .response-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .try-section {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .try-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .try-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .content-body {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/ui" class="logo">
+                    <div class="logo-icon">D</div>
+                    <span class="logo-text">OCR Service</span>
+                    <span class="version-badge">v1.0</span>
+                </a>
+            </div>
+
+            <nav class="sidebar-nav" id="sidebarNav"></nav>
+
+            <div class="sidebar-footer">
+                <a href="/docs" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                    Open Swagger UI
+                </a>
+                <a href="/ui">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <line x1="3" y1="9" x2="21" y2="9" />
+                    </svg>
+                    OCR Scanner
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="content-header">
+                <div class="breadcrumb" id="breadcrumb"></div>
+                <div class="content-title">
+                    <span class="endpoint-method" id="headerMethod"></span>
+                    <h1 id="headerTitle"></h1>
+                </div>
+            </div>
+            <div class="content-body" id="contentBody"></div>
+        </main>
+    </div>
+
+    <script>
+        const endpoints = {
+            extract: {
+                category: "OCR",
+                title: "Extract Text from Document",
+                method: "post",
+                path: "/api/ocr/extract",
+                desc: "Upload file dokumen untuk ekstraksi teks menggunakan OCR. Mendukung format gambar (PNG, JPG, JPEG, TIFF, BMP) dan PDF multi-halaman. Maksimal ukuran file 50MB.",
+                params: [
+                    { name: "file", type: "file", required: true, desc: "File dokumen yang akan diproses (PNG, JPG, PDF, dll)" },
+                    { name: "language", type: "string", required: false, desc: 'Bahasa dokumen: "id", "en", atau "mixed" (default)' },
+                    { name: "engine", type: "string", required: false, desc: 'OCR engine: "paddle" (akurat) atau "tesseract" (cepat)' },
+                    { name: "use_dictionary", type: "boolean", required: false, desc: "Koreksi hasil dengan kamus Indonesia" },
+                    { name: "enhance", type: "boolean", required: false, desc: "Tingkatkan kontras untuk dokumen pudar/jadul" }
+                ],
+                curl: `curl -X POST "http://localhost:8000/api/ocr/extract" \\
+  -H "X-API-Key: sk-ocr-xxxxx" \\
+  -F "file=@document.pdf" \\
+  -F "language=id" \\
+  -F "use_dictionary=true"`,
+                python: `import requests
+
+response = requests.post(
+    "http://localhost:8000/api/ocr/extract",
+    headers={"X-API-Key": "sk-ocr-xxxxx"},
+    files={"file": open("document.pdf", "rb")},
+    data={"language": "id", "use_dictionary": "true"}
+)
+print(response.json())`,
+                response: `{
+  "success": true,
+  "text": "Extracted text from your document...",
+  "pages": 5,
+  "language": "id",
+  "processing_time_ms": 3456,
+  "quality_score": { "overall": 92, "confidence": 0.95 }
+}`,
+                swagger: "/docs#/OCR/extract_text_api_ocr_extract_post"
+            },
+            minio: {
+                category: "OCR",
+                title: "Extract from MinIO",
+                method: "post",
+                path: "/api/ocr/extract-from-minio",
+                desc: "Ekstraksi teks dari file yang sudah ada di MinIO storage. Tidak perlu upload ulang file.",
+                params: [
+                    { name: "bucket_name", type: "string", required: true, desc: "Nama bucket MinIO" },
+                    { name: "object_name", type: "string", required: true, desc: "Nama object/file di MinIO" },
+                    { name: "language", type: "string", required: false, desc: 'Bahasa dokumen: "id", "en", atau "mixed"' }
+                ],
+                curl: `curl -X POST "http://localhost:8000/api/ocr/extract-from-minio" \\
+  -H "X-API-Key: sk-ocr-xxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{"bucket_name": "documents", "object_name": "doc.pdf"}'`,
+                python: `import requests
+
+response = requests.post(
+    "http://localhost:8000/api/ocr/extract-from-minio",
+    headers={"X-API-Key": "sk-ocr-xxxxx", "Content-Type": "application/json"},
+    json={"bucket_name": "documents", "object_name": "doc.pdf"}
+)
+print(response.json())`,
+                response: `{
+  "success": true,
+  "text": "Extracted text...",
+  "pages": 1,
+  "processing_time_ms": 2100
+}`,
+                swagger: "/docs#/OCR"
+            },
+            history: {
+                category: "OCR",
+                title: "Get OCR History",
+                method: "get",
+                path: "/api/ocr/history",
+                desc: "Lihat riwayat request OCR dengan pagination. Menampilkan file yang pernah diproses beserta hasilnya.",
+                params: [
+                    { name: "limit", type: "integer", required: false, desc: "Jumlah data per halaman (default: 10)" },
+                    { name: "offset", type: "integer", required: false, desc: "Offset untuk pagination (default: 0)" }
+                ],
+                curl: `curl -X GET "http://localhost:8000/api/ocr/history?limit=10&offset=0" \\
+  -H "X-API-Key: sk-ocr-xxxxx"`,
+                python: `import requests
+
+response = requests.get(
+    "http://localhost:8000/api/ocr/history",
+    headers={"X-API-Key": "sk-ocr-xxxxx"},
+    params={"limit": 10, "offset": 0}
+)
+print(response.json())`,
+                response: `{
+  "history": [
+    {"id": 1, "filename": "doc.pdf", "pages": 5, "created_at": "2026-01-16T10:00:00"}
+  ],
+  "total": 100
+}`,
+                swagger: "/docs#/OCR"
+            },
+            stats: {
+                category: "OCR",
+                title: "Get OCR Statistics",
+                method: "get",
+                path: "/api/ocr/stats",
+                desc: "Statistik penggunaan API OCR termasuk jumlah request, success rate, dan rata-rata waktu proses.",
+                params: [],
+                curl: `curl -X GET "http://localhost:8000/api/ocr/stats" \\
+  -H "X-API-Key: sk-ocr-xxxxx"`,
+                python: `import requests
+
+response = requests.get(
+    "http://localhost:8000/api/ocr/stats",
+    headers={"X-API-Key": "sk-ocr-xxxxx"}
+)
+print(response.json())`,
+                response: `{
+  "total_requests": 1500,
+  "success_rate": 0.98,
+  "avg_processing_time_ms": 3200,
+  "total_pages_processed": 5400
+}`,
+                swagger: "/docs#/OCR"
+            },
+            export: {
+                category: "Learning Dictionary",
+                title: "Export Learned Words",
+                method: "get",
+                path: "/api/learning/export",
+                desc: "Export semua kata yang sudah dipelajari (approved + pending) dalam format JSON untuk backup atau transfer ke server lain.",
+                params: [],
+                curl: `curl -X GET "http://localhost:8000/api/learning/export" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY" \\
+  -o backup.json`,
+                python: `import requests
+
+response = requests.get(
+    "http://localhost:8000/api/learning/export",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"}
+)
+with open("backup.json", "w") as f:
+    f.write(response.text)`,
+                response: `{
+  "approved": [
+    {"word": "digitalisasi", "frequency": 15, "approved_at": "2026-01-15"}
+  ],
+  "pending": [
+    {"word": "arsiparis", "frequency": 3}
+  ],
+  "exported_at": "2026-01-16T10:00:00"
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            import: {
+                category: "Learning Dictionary",
+                title: "Import Learned Words",
+                method: "post",
+                path: "/api/learning/import",
+                desc: "Import kata-kata ke dictionary dengan mode: merge (gabung), replace (timpa), atau approved_only (hanya yang sudah approved).",
+                params: [
+                    { name: "words", type: "array", required: true, desc: "Array of word objects dengan field word, frequency, approved" },
+                    { name: "mode", type: "string", required: false, desc: 'Mode import: "merge", "replace", atau "approved_only"' }
+                ],
+                curl: `curl -X POST "http://localhost:8000/api/learning/import" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d @backup.json`,
+                python: `import requests
+import json
+
+with open("backup.json") as f:
+    data = json.load(f)
+
+response = requests.post(
+    "http://localhost:8000/api/learning/import",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"},
+    json={"words": data["approved"], "mode": "merge"}
+)
+print(response.json())`,
+                response: `{
+  "success": true,
+  "imported": 150,
+  "skipped": 10,
+  "rejected": 2,
+  "message": "Import completed"
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            pending: {
+                category: "Learning Dictionary",
+                title: "Get Pending Words",
+                method: "get",
+                path: "/api/learning/pending",
+                desc: "Lihat daftar kata yang masih pending review dan belum di-approve ke dictionary.",
+                params: [],
+                curl: `curl -X GET "http://localhost:8000/api/learning/pending" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"`,
+                python: `import requests
+
+response = requests.get(
+    "http://localhost:8000/api/learning/pending",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"}
+)
+print(response.json())`,
+                response: `{
+  "pending_words": [
+    {"word": "arsiparis", "frequency": 3, "first_seen": "2026-01-15"}
+  ],
+  "total": 25
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            audit: {
+                category: "Learning Dictionary",
+                title: "Get Audit Logs",
+                method: "get",
+                path: "/api/learning/audit-logs",
+                desc: "Lihat audit logs untuk semua aksi sensitif seperti import, export, approve, reject, dan authentication failures.",
+                params: [
+                    { name: "limit", type: "integer", required: false, desc: "Jumlah log per halaman (default: 50)" },
+                    { name: "event_type", type: "string", required: false, desc: "Filter berdasarkan tipe event" }
+                ],
+                curl: `curl -X GET "http://localhost:8000/api/learning/audit-logs?limit=50" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"`,
+                python: `import requests
+
+response = requests.get(
+    "http://localhost:8000/api/learning/audit-logs",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"},
+    params={"limit": 50}
+)
+print(response.json())`,
+                response: `{
+  "logs": [
+    {"event_type": "WORDS_IMPORTED", "actor": "admin", "ip": "192.168.1.1", "timestamp": "2026-01-16T10:00:00"}
+  ],
+  "total": 100
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            "learning-stats": {
+                category: "Learning Dictionary",
+                title: "Get Learning Stats",
+                method: "get",
+                path: "/api/learning/stats",
+                desc: "Statistik dictionary learning: total kata yang di-track, approved, pending, dan threshold auto-approve.",
+                params: [],
+                curl: `curl -X GET "http://localhost:8000/api/learning/stats" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"`,
+                python: `import requests
+
+response = requests.get(
+    "http://localhost:8000/api/learning/stats",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"}
+)
+print(response.json())`,
+                response: `{
+  "total_tracked": 250,
+  "approved": 180,
+  "pending": 70,
+  "threshold": 5
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            "export-approved": {
+                category: "Learning Dictionary",
+                title: "Export Approved Only",
+                method: "get",
+                path: "/api/learning/export/approved",
+                desc: "Export hanya kata-kata yang sudah di-approve dalam format simple list.",
+                params: [],
+                curl: `curl -X GET "http://localhost:8000/api/learning/export/approved" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"`,
+                python: `import requests
+
+response = requests.get(
+    "http://localhost:8000/api/learning/export/approved",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"}
+)
+print(response.json())`,
+                response: `{
+  "words": ["digitalisasi", "arsiparis", "pendataan"],
+  "total": 180,
+  "exported_at": "2026-01-16T10:00:00"
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            "import-simple": {
+                category: "Learning Dictionary",
+                title: "Import Simple Word List",
+                method: "post",
+                path: "/api/learning/import/simple",
+                desc: "Import kata-kata dari simple array (list kata biasa). Cocok untuk import dari file text.",
+                params: [
+                    { name: "words", type: "array", required: true, desc: "Array of strings (kata-kata)" },
+                    { name: "auto_approve", type: "boolean", required: false, desc: "Set true untuk langsung approve semua (default: true)" }
+                ],
+                curl: `curl -X POST "http://localhost:8000/api/learning/import/simple" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '["digitalisasi", "arsiparis", "pendataan"]'`,
+                python: `import requests
+
+response = requests.post(
+    "http://localhost:8000/api/learning/import/simple",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"},
+    json=["digitalisasi", "arsiparis", "pendataan"]
+)
+print(response.json())`,
+                response: `{
+  "success": true,
+  "imported": 3,
+  "skipped": 0,
+  "message": "Import completed"
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            "approve-word": {
+                category: "Learning Dictionary",
+                title: "Approve Word",
+                method: "post",
+                path: "/api/learning/approve/{word}",
+                desc: "Approve kata secara manual untuk langsung masuk ke dictionary.",
+                params: [
+                    { name: "word", type: "string", required: true, desc: "Kata yang akan di-approve (path parameter)" }
+                ],
+                curl: `curl -X POST "http://localhost:8000/api/learning/approve/digitalisasi" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"`,
+                python: `import requests
+
+response = requests.post(
+    "http://localhost:8000/api/learning/approve/digitalisasi",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"}
+)
+print(response.json())`,
+                response: `{
+  "success": true,
+  "word": "digitalisasi",
+  "message": "Word approved and added to dictionary"
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            "reject-word": {
+                category: "Learning Dictionary",
+                title: "Reject Word",
+                method: "delete",
+                path: "/api/learning/reject/{word}",
+                desc: "Hapus kata dari tracking (reject). Kata akan dihilangkan dari pending list.",
+                params: [
+                    { name: "word", type: "string", required: true, desc: "Kata yang akan di-reject (path parameter)" }
+                ],
+                curl: `curl -X DELETE "http://localhost:8000/api/learning/reject/typo123" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"`,
+                python: `import requests
+
+response = requests.delete(
+    "http://localhost:8000/api/learning/reject/typo123",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"}
+)
+print(response.json())`,
+                response: `{
+  "success": true,
+  "word": "typo123",
+  "message": "Word rejected and removed from tracking"
+}`,
+                swagger: "/docs#/Learning%20Dictionary"
+            },
+            "keys-create": {
+                category: "Admin",
+                title: "Create API Key",
+                method: "post",
+                path: "/api/admin/keys",
+                desc: "Generate API key baru untuk client. Key hanya ditampilkan sekali saat dibuat.",
+                params: [
+                    { name: "name", type: "string", required: true, desc: "Nama/label untuk API key" },
+                    { name: "is_admin", type: "boolean", required: false, desc: "Apakah key memiliki akses admin" }
+                ],
+                curl: `curl -X POST "http://localhost:8000/api/admin/keys" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name": "Mobile App", "is_admin": false}'`,
+                python: `import requests
+
+response = requests.post(
+    "http://localhost:8000/api/admin/keys",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"},
+    json={"name": "Mobile App", "is_admin": False}
+)
+print(response.json())`,
+                response: `{
+  "id": 5,
+  "name": "Mobile App",
+  "key": "sk-ocr-abc123xyz...",
+  "is_admin": false,
+  "created_at": "2026-01-16T10:00:00"
+}`,
+                swagger: "/docs#/Admin"
+            },
+            "keys-list": {
+                category: "Admin",
+                title: "List API Keys",
+                method: "get",
+                path: "/api/admin/keys",
+                desc: "Lihat semua API keys yang terdaftar (key value tidak ditampilkan, hanya metadata).",
+                params: [],
+                curl: `curl -X GET "http://localhost:8000/api/admin/keys" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"`,
+                python: `import requests
+
+response = requests.get(
+    "http://localhost:8000/api/admin/keys",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"}
+)
+print(response.json())`,
+                response: `{
+  "keys": [
+    {"id": 1, "name": "Mobile App", "is_admin": false, "created_at": "2026-01-15", "last_used": "2026-01-16"}
+  ]
+}`,
+                swagger: "/docs#/Admin"
+            },
+            "keys-revoke": {
+                category: "Admin",
+                title: "Revoke API Key",
+                method: "delete",
+                path: "/api/admin/keys/{id}",
+                desc: "Revoke/hapus API key sehingga tidak dapat digunakan lagi. Aksi ini permanen.",
+                params: [
+                    { name: "id", type: "integer", required: true, desc: "ID dari API key yang akan di-revoke" }
+                ],
+                curl: `curl -X DELETE "http://localhost:8000/api/admin/keys/5" \\
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"`,
+                python: `import requests
+
+response = requests.delete(
+    "http://localhost:8000/api/admin/keys/5",
+    headers={"X-Admin-Key": "YOUR_ADMIN_KEY"}
+)
+print(response.json())`,
+                response: `{
+  "success": true,
+  "message": "API key revoked successfully"
+}`,
+                swagger: "/docs#/Admin"
+            }
+        };
+
+        const navStructure = [
+            { section: "OCR", items: ["extract", "minio", "history", "stats"] },
+            { section: "Learning Dictionary", items: ["learning-stats", "export", "export-approved", "import", "import-simple", "pending", "approve-word", "reject-word", "audit"] },
+            { section: "Admin", items: ["keys-create", "keys-list", "keys-revoke"] }
+        ];
+
+        function buildSidebar() {
+            const nav = document.getElementById("sidebarNav");
+            nav.innerHTML = navStructure.map(group => `
+                <div class="nav-section">
+                    <div class="nav-section-title">${group.section}</div>
+                    ${group.items.map(id => {
+                const ep = endpoints[id];
+                return `<a class="nav-item" data-endpoint="${id}">
+                            <span class="method-badge ${ep.method}">${ep.method === 'delete' ? 'DEL' : ep.method.toUpperCase()}</span>
+                            <span class="nav-item-path">${ep.path}</span>
+                        </a>`;
+            }).join('')}
+                </div>
+            `).join('');
+
+            nav.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => loadEndpoint(item.dataset.endpoint));
+            });
+        }
+
+        function loadEndpoint(id) {
+            const ep = endpoints[id];
+            if (!ep) return;
+
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelector(`[data-endpoint="${id}"]`)?.classList.add('active');
+
+            document.getElementById('breadcrumb').textContent = `${ep.category} / ${ep.title}`;
+            document.getElementById('headerMethod').className = `endpoint-method ${ep.method}`;
+            document.getElementById('headerMethod').textContent = ep.method.toUpperCase();
+            document.getElementById('headerTitle').textContent = ep.title;
+
+            const paramsHtml = ep.params.length ? `
+                <div class="param-section">
+                    <div class="param-title">Request Parameters</div>
+                    <table class="param-table">
+                        <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+                        <tbody>
+                            ${ep.params.map(p => `<tr>
+                                <td><span class="param-name">${p.name}</span> ${p.required ? '<span class="param-required">*required</span>' : ''}</td>
+                                <td><span class="param-type">${p.type}</span></td>
+                                <td>${p.desc}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : '';
+
+            document.getElementById('contentBody').innerHTML = `
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="endpoint-method ${ep.method}">${ep.method.toUpperCase()}</span>
+                        <span class="endpoint-url">${ep.path}</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-desc">${ep.desc}</p>
+                        ${paramsHtml}
+                        <div class="code-section">
+                            <div class="code-tabs">
+                                <button class="code-tab active" data-lang="curl">cURL</button>
+                                <button class="code-tab" data-lang="python">Python</button>
+                            </div>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-lang" id="codeLang">bash</span>
+                                    <button class="copy-btn" onclick="copyCode()">Copy</button>
+                                </div>
+                                <div class="code-content" id="codeContent"><code id="codeText">${ep.curl}</code></div>
+                            </div>
+                        </div>
+                        <div class="response-section">
+                            <div class="response-title">Response <span class="status-badge success">200 OK</span></div>
+                            <div class="code-block">
+                                <div class="code-header"><span class="code-lang">json</span></div>
+                                <div class="code-content"><code>${ep.response}</code></div>
+                            </div>
+                        </div>
+                        <div class="try-section">
+                            <a href="${ep.swagger}" target="_blank" class="try-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                Try it out in Swagger
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Setup code tabs
+            const currentEp = ep;
+            document.querySelectorAll('.code-tab').forEach(tab => {
+                tab.addEventListener('click', function () {
+                    document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    const lang = this.dataset.lang;
+                    document.getElementById('codeLang').textContent = lang === 'curl' ? 'bash' : 'python';
+                    document.getElementById('codeText').textContent = lang === 'curl' ? currentEp.curl : currentEp.python;
+                });
+            });
+        }
+
+        function copyCode() {
+            const code = document.getElementById('codeText').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        }
+
+        // Init
+        buildSidebar();
+        loadEndpoint('extract');
+    </script>
+</body>
+
+</html>

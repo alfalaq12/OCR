@@ -17,69 +17,9 @@ import os
 
 # Dokumentasi API untuk enterprise clients
 API_DESCRIPTION = """
-# Document OCR Service
+Layanan ekstraksi teks otomatis dari dokumen scan. 
 
-Layanan ekstraksi teks otomatis dari dokumen scan untuk kebutuhan digitalisasi arsip dan otomasi data entry.
-
----
-
-## Kemampuan Utama
-
-| Fitur | Spesifikasi |
-|-------|-------------|
-| **Format Input** | PNG, JPG, JPEG, TIFF, BMP, GIF, PDF |
-| **PDF Multi-halaman** | Mendukung hingga 100+ halaman per dokumen |
-| **Bahasa** | Indonesia, English, Mixed |
-| **Akurasi** | 95%+ untuk dokumen berkualitas baik |
-| **Response Time** | ~3-6 detik per halaman |
-
----
-
-## Autentikasi
-
-Setiap request memerlukan API Key yang valid pada header:
-
-```
-X-API-Key: <api-key-anda>
-```
-
-Untuk mendapatkan API Key, hubungi administrator sistem.
-
----
-
-## Contoh Response
-
-```json
-{
-  "success": true,
-  "text": "Hasil ekstraksi teks dari dokumen...",
-  "pages": 5,
-  "language": "id",
-  "processing_time_ms": 15234,
-  "error": null,
-  "error_code": null
-}
-```
-
----
-
-## Kode Error
-
-| Kode | Deskripsi |
-|------|-----------|
-| `AUTH_MISSING_KEY` | Header X-API-Key tidak ditemukan |
-| `AUTH_INVALID_KEY` | API Key tidak valid atau sudah expired |
-| `FILE_TYPE_NOT_ALLOWED` | Format file tidak didukung |
-| `FILE_TOO_LARGE` | Ukuran file melebihi batas 50MB |
-| `OCR_ENGINE_ERROR` | Terjadi kesalahan pada proses OCR |
-| `PDF_CONVERSION_ERROR` | Gagal mengkonversi halaman PDF |
-| `RATE_LIMIT_EXCEEDED` | Batas request per menit terlampaui |
-
----
-
-## Kontak Teknis
-
-Untuk pertanyaan teknis atau integrasi, silakan hubungi tim development.
+📖 **Dokumentasi lengkap:** [/api-docs](/api-docs)
 """
 
 # Metadata untuk grouping endpoint
@@ -108,11 +48,11 @@ app = FastAPI(
     description=API_DESCRIPTION,
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc",
+    redoc_url=None,  # Disabled, use /api-docs instead
     openapi_tags=TAGS_METADATA,
     contact={
-        "name": "Tim Development",
-        "email": "dev@company.id",
+        "name": "bintang",
+        "email": "bintangal.falag@gmail.com",
     },
     license_info={
         "name": "Proprietary License",
@@ -179,6 +119,15 @@ async def serve_ui():
     if os.path.exists(html_path):
         return FileResponse(html_path)
     return {"error": "UI not found"}
+
+
+@app.get("/api-docs", tags=["Health"])
+async def serve_api_docs():
+    """Serve modern API documentation page."""
+    html_path = os.path.join(os.path.dirname(__file__), "static", "api-docs.html")
+    if os.path.exists(html_path):
+        return FileResponse(html_path)
+    return {"error": "API docs not found"}
 
 
 @app.on_event("startup")

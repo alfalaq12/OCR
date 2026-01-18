@@ -21,6 +21,8 @@ KATA_ASING = {
     "adjustment", "major", "junior", "senior",
     # Dutch words (sering di dokumen kolonial)
     "adjunct", "project", "object",
+    # Kata modern yang mengandung polab ejaan lama tapi sudah benar (biar gak rusak)
+    "penunjukan", "tunjuk", "panjang", "janji", "banjir", "manja",
     # Nama-nama umum yang pakai ejaan lama (optional, bisa di-skip)
 }
 

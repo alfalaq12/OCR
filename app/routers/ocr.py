@@ -81,7 +81,7 @@ async def extract_text(
     file: UploadFile = File(..., description="File gambar atau PDF yang akan diproses"),
     language: str = Form(default="mixed", description="Bahasa dokumen: id, en, atau mixed"),
     engine: str = Form(default="auto", description="OCR engine: tesseract (cepat), paddle (akurat), atau auto"),
-    enhance: bool = Form(default=False, description="Aktifkan preprocessing untuk dokumen jadul/pudar"),
+    enhance: bool = Form(default=None, description="Aktifkan preprocessing untuk dokumen jadul/pudar (default: dari env DEFAULT_ENHANCE)"),
     normalize_spelling: bool = Form(default=False, description="Konversi ejaan lama (oe→u, dj→j, tj→c, dll) ke ejaan modern"),
     use_dictionary: bool = Form(default=False, description="Koreksi kata menggunakan kamus Indonesia"),
     api_key: str = Depends(verify_api_key)
@@ -187,6 +187,10 @@ async def extract_text(
         )
 
     try:
+        # Use default enhance from settings if not specified
+        if enhance is None:
+            enhance = settings.DEFAULT_ENHANCE
+        
         # proses OCR dengan engine yang dipilih
         text, halaman, waktu_proses, confidence_scores = ocr_service.proses_file(
             isi_file,
@@ -196,25 +200,36 @@ async def extract_text(
             enhance
         )
 
-        # Normalisasi ejaan lama jika diminta
+        # Pipeline Pemrosesan Teks (Urutan PENTING)
+        # 1. Koreksi Kamus (Fix Typo/Garbage) -> 2. Normalisasi Ejaan (Modernisasi)
+        
+        corrected_text = text
         normalized_text = None
-        spelling_changes = None
-        text_to_process = text
+        spelling_changes = 0
+        dictionary_corrections = 0
         
-        if normalize_spelling and text:
+        # Step 1: Koreksi dengan kamus Indonesia (Fix Typo & Garbage)
+        # Dilakukan PERTAMA karena kamus berisi kata-kata baku yang benar
+        if use_dictionary and text:
+            from app.services.dictionary_corrector import correct_with_stats, normalize_currency_and_numbers
+            corrected_text, dictionary_corrections = correct_with_stats(text)
+            
+            # Apply currency and number normalization (fix format Rp, angka, tahun)
+            corrected_text = normalize_currency_and_numbers(corrected_text)
+
+        # Step 2: Normalisasi ejaan lama ke baru (Modernisasi)
+        # Inputnya adalah hasil dari Step 1 (yang sudah bersih dari typo)
+        if normalize_spelling and corrected_text:
             from app.services.spelling_normalizer import normalize_with_comparison
-            _, normalized_text, spelling_changes = normalize_with_comparison(text)
-            text_to_process = normalized_text
-        
-        # Koreksi dengan kamus Indonesia jika diminta
-        dictionary_corrections = None
-        if use_dictionary and text_to_process:
-            from app.services.dictionary_corrector import correct_with_stats
-            corrected_text, dictionary_corrections = correct_with_stats(text_to_process)
-            if normalize_spelling:
-                normalized_text = corrected_text
-            else:
-                normalized_text = corrected_text
+            # Normalized text (modern) vs Corrected Text (bisa jadi masih ejaan lama tapi bener)
+            _, normalized_text, spelling_count = normalize_with_comparison(corrected_text)
+            spelling_changes = spelling_count
+        else:
+            # Kalau tidak dimodernisasi, normalized_text sama dengan hasil koreksi
+            normalized_text = corrected_text
+            
+        # Final text to process for scoring/quality check
+        text_to_process = normalized_text if normalized_text else corrected_text
 
         # Hitung quality score
         from app.services.scoring_service import calculate_quality_score

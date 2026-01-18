@@ -521,7 +521,8 @@
                 OCR Scanner
             </a>
             <div class="nav-links">
-                <a href="/docs">API Docs</a>
+                <a href="/api-docs">API Docs</a>
+                <a href="/docs">Swagger</a>
             </div>
         </div>
     </nav>
@@ -570,7 +571,7 @@
 
             <div style="margin-top: 16px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="enhance" style="width: 18px; height: 18px; cursor: pointer;">
+                    <input type="checkbox" id="enhance" style="width: 18px; height: 18px; cursor: pointer;" checked>
                     <span style="font-size: 14px;">Dokumen Jadul/Pudar (Tingkatkan Kontras)</span>
                 </label>
             </div>
@@ -584,7 +585,8 @@
 
             <div style="margin-top: 12px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="useDictionary" style="width: 18px; height: 18px; cursor: pointer;">
+                    <input type="checkbox" id="useDictionary" style="width: 18px; height: 18px; cursor: pointer;"
+                        checked>
                     <span style="font-size: 14px;">Koreksi dengan Kamus Indonesia</span>
                 </label>
             </div>
@@ -645,7 +647,7 @@
                         <span class="breakdown-value" id="matchValue">0%</span>
                     </div>
                     <div class="breakdown-item">
-                        <span class="breakdown-label">Koreksi Diperlukan</span>
+                        <span class="breakdown-label">Kata Telah Dikoreksi</span>
                         <div class="breakdown-bar">
                             <div class="breakdown-fill correction" id="correctionBar" style="width: 0%"></div>
                         </div>
@@ -754,7 +756,8 @@
                 }
 
                 .breakdown-fill.correction {
-                    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+                    /* Green implies "Fixed/Success" instead of Orange "Warning" */
+                    background: linear-gradient(90deg, #10b981, #34d399);
                 }
 
                 .breakdown-value {
