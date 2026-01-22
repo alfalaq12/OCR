@@ -126,3 +126,120 @@ async def stats_api_key(admin_key: str = Depends(cek_akses_admin)):
     """
     stats = db_service.stats_api_key()
     return APIKeyStatsResponse(**stats)
+
+
+# ==================== Dashboard Endpoints ====================
+
+from app.models.schemas import (
+    DashboardStatsResponse, RequestsChartData, 
+    AuditSummaryResponse, AuditEventCount
+)
+from app.services.learning_service import learning_service
+from app.services.audit_logger import audit_logger
+from datetime import datetime, timedelta
+
+
+@router.get("/dashboard/stats", response_model=DashboardStatsResponse)
+async def get_dashboard_stats(admin_key: str = Depends(cek_akses_admin)):
+    """
+    Mengambil semua statistik untuk admin dashboard.
+    
+    Menggabungkan data dari OCR, API Keys, Learning, dan Audit.
+    """
+    # OCR Stats
+    ocr_stats = db_service.ambil_stats()
+    
+    # API Key Stats
+    key_stats = db_service.stats_api_key()
+    
+    # Learning Stats
+    learning_stats = learning_service.get_stats()
+    
+    # Audit Stats
+    audit_stats = audit_logger.get_stats()
+    
+    # Calculate success rate
+    total = ocr_stats["total_requests"]
+    success_rate = (ocr_stats["successful"] / total * 100) if total > 0 else 0
+    
+    return DashboardStatsResponse(
+        # OCR
+        total_requests=ocr_stats["total_requests"],
+        successful_requests=ocr_stats["successful"],
+        failed_requests=ocr_stats["failed"],
+        success_rate=round(success_rate, 1),
+        avg_processing_time_ms=ocr_stats["avg_processing_time_ms"],
+        total_pages_processed=ocr_stats["total_pages_processed"],
+        # API Keys
+        total_keys=key_stats["total_keys"],
+        active_keys=key_stats["active_keys"],
+        revoked_keys=key_stats["revoked_keys"],
+        # Learning
+        total_tracked_words=learning_stats["total_tracked"],
+        approved_words=learning_stats["approved"],
+        pending_words=learning_stats["pending"],
+        # Audit
+        total_audit_events=audit_stats.get("total", 0)
+    )
+
+
+@router.get("/dashboard/requests-chart", response_model=RequestsChartData)
+async def get_requests_chart(
+    days: int = 7,
+    admin_key: str = Depends(cek_akses_admin)
+):
+    """
+    Mengambil data untuk chart request per hari.
+    
+    Default 7 hari terakhir.
+    """
+    data = db_service.get_requests_by_date(days)
+    
+    # Generate labels untuk semua hari (termasuk yang kosong)
+    labels = []
+    successful = []
+    failed = []
+    
+    # Buat dict dari data yang ada
+    data_dict = {d["date"]: d for d in data}
+    
+    # Generate semua tanggal
+    for i in range(days - 1, -1, -1):
+        date = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+        labels.append(date)
+        
+        if date in data_dict:
+            successful.append(data_dict[date]["successful"] or 0)
+            failed.append(data_dict[date]["failed"] or 0)
+        else:
+            successful.append(0)
+            failed.append(0)
+    
+    return RequestsChartData(
+        labels=labels,
+        successful=successful,
+        failed=failed
+    )
+
+
+@router.get("/dashboard/audit-summary", response_model=AuditSummaryResponse)
+async def get_audit_summary(admin_key: str = Depends(cek_akses_admin)):
+    """
+    Mengambil summary audit logs untuk dashboard.
+    """
+    stats = audit_logger.get_stats()
+    recent = audit_logger.get_logs(limit=10)
+    
+    # Convert stats ke list of AuditEventCount
+    events_by_type = [
+        AuditEventCount(event_type=k, count=v)
+        for k, v in stats.items()
+        if k != "total"
+    ]
+    
+    return AuditSummaryResponse(
+        total_events=stats.get("total", 0),
+        events_by_type=events_by_type,
+        recent_events=recent
+    )
+

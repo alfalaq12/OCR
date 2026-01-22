@@ -262,6 +262,21 @@ class DatabaseService:
                 "total_pages_processed": row[4] or 0
             }
 
+    def get_requests_by_date(self, days: int = 7) -> List[dict]:
+        """Ambil jumlah request per hari untuk chart"""
+        with self._konek() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    DATE(created_at) as date,
+                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful,
+                    SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed
+                FROM ocr_history
+                WHERE created_at >= DATE('now', ? || ' days')
+                GROUP BY DATE(created_at)
+                ORDER BY date ASC
+            """, (f"-{days}",))
+            return [dict(row) for row in cursor.fetchall()]
+
     # alias buat backward compatibility
     def generate_api_key(self, name, is_admin=False):
         return self.bikin_api_key(name, is_admin)

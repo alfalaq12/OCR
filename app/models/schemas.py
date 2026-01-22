@@ -117,3 +117,49 @@ class APIKeyStatsResponse(BaseModel):
     active_keys: int
     revoked_keys: int
     total_requests: int
+
+
+# Model untuk Admin Dashboard
+
+class DashboardStatsResponse(BaseModel):
+    """Statistik gabungan untuk dashboard"""
+    # OCR Stats
+    total_requests: int
+    successful_requests: int
+    failed_requests: int
+    success_rate: float
+    avg_processing_time_ms: float
+    total_pages_processed: int
+    
+    # API Key Stats
+    total_keys: int
+    active_keys: int
+    revoked_keys: int
+    
+    # Learning Stats
+    total_tracked_words: int
+    approved_words: int
+    pending_words: int
+    
+    # Audit Stats
+    total_audit_events: int
+
+
+class RequestsChartData(BaseModel):
+    """Data untuk chart request per hari"""
+    labels: list[str]  # Tanggal
+    successful: list[int]  # Jumlah sukses per hari
+    failed: list[int]  # Jumlah gagal per hari
+
+
+class AuditEventCount(BaseModel):
+    """Jumlah per event type"""
+    event_type: str
+    count: int
+
+
+class AuditSummaryResponse(BaseModel):
+    """Summary audit logs"""
+    total_events: int
+    events_by_type: list[AuditEventCount]
+    recent_events: list[dict]

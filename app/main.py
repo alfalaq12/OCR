@@ -111,6 +111,11 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+# Mount admin folder untuk dashboard
+admin_dir = os.path.join(os.path.dirname(__file__), "admin")
+if os.path.exists(admin_dir):
+    app.mount("/admin", StaticFiles(directory=admin_dir, html=True), name="admin")
+
 
 @app.get("/ui", tags=["Health"])
 async def serve_ui():

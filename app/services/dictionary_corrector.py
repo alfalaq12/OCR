@@ -384,6 +384,7 @@ PHRASE_CORRECTIONS = {
     "soptomber": "september",
     "septomber": "september",
     "scptember": "september",
+    "scptenbor": "september", # Added Scptenbor
     "soptembar": "september",
     "septamber": "september",
     "septembar": "september",
@@ -488,6 +489,17 @@ PHRASE_CORRECTIONS = {
     "tanaks": "anak",
     "kakeks": "kakak",
     "kalcak": "kakak",
+    
+    # Body Text Typos (User Reported)
+    "dengao": "dengan",
+    "ercantum": "tercantum",
+    "ertjantum": "tercantum",
+    "lunasnia": "lunasnya",
+    "penglolaan": "pengelolaan",
+    "dircktorat": "direktorat",
+    "deparjemen": "departemen",
+    "karta": "jakarta",
+    "jasa": "jakarta", # Context favorable
     
     # Dokumen & Surat
     "halman": "halaman",
@@ -1058,9 +1070,59 @@ MULTI_WORD_CORRECTIONS = {
     "sic": "seksi",
     "jaksra": "jakarta",
     "jakartau": "jakarta",
+    "jakart": "jakarta",
+    
+    # Body Text Corrections (Specific Contexts)
+    "telah luas": "telah lunas",
+    "dengan ujang": "dengan jang",
+    "penjerahan mbak": "penjerahan hak",
+    "mbak milik": "hak milik",
+    "hak militer": "hak milik",
+    "rumah teras": "rumah terse-",
+    "butir tanah": "but tanpa",
+    "tanah tanah": "tanpa tanahnja",
+    "kepada sewa beli": "kepada penjewa-belinja",
+    "keputusan jalan": "keputusan pendjualan",
+    "undang tahunan": "undang tahun",
+    "juru sdri": "diurus sendiri",
+    "keputusan pekerjaan": "keputusan pelepasan",
+    "hak tanah penggunaan": "hak tanah penglolaan",
+    "ini diatas": "ini dibuat",
+    "dalam angka": "dalam rangkap",
+    "bijblad mainah": "bila mana",
+    "di kebudayaan": "dikemudian",
+    "dapat kelurahan": "terdapat kesalahan",
+    "mbak salah": "maka segala",
+    "akan dapat": "akan diralat",
+    "mainah sutinah": "mana mestinja",
+    "sampai dengan kramat": "disampaikan dengan hormat",
+    "badan memberikan": "badan pemeriksa",
+    "tenaga istri": "tenaga listerik",
+    "listerik": "listerik",
     "manado": "manado",
+    "sewa bali": "sewa beli", # Added sewa bali -> sewa beli
+    
+    # Body Clusters (User Reported)
+    "per dilakukan": "perlu dilakukan",
+    "bak milik": "hak milik",
+    "mbak milik": "hak milik",
+    "di jasa": "di jakarta",
+    "bak milik": "hak milik",
+    "mbak milik": "hak milik",
+    "di jasa": "di jakarta",
+    "agraria di jasa": "agraria di jakarta",
+    
+    # Correction for "Jang bertanda tangan"
+    "jang bertanda tangan": "yang bertanda tangan",
+    "ujang tertanda tunyangan": "yang bertanda tangan",
+    "ujang bertanda tangan": "yang bertanda tangan",
+    "jang bertanda": "yang bertanda",
+    "tertanda tangan": "bertanda tangan",
+    "bertanda tunyangan": "bertanda tangan",
+    "tunyangan": "tangan",
     
     # Demang Buruk dan sejenisnya
+    "djuru": "juru",
     "demang buruk": "dewan", 
     "pemerin": "pemeriksa",
     "istri": "listrik",  # context: Tenaga Istri -> Tenaga Listrik
